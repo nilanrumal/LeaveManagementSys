@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy-50: #f0f7ff;
+  --color-navy-100: #e0effe;
+  --color-navy-200: #bae0fd;
+  --color-navy-300: #7cc8fb;
+  --color-navy-400: #38abf8;
+  --color-navy-500: #0e91e9;
+  --color-navy-600: #0274c7;
+  --color-navy-700: #035ca1;
+  --color-navy-800: #074e85;
+  --color-navy-900: #002147;
+  --color-navy-950: #061e38;
+
+  --color-amber-50: #fffbeb;
+  --color-amber-100: #fef3c7;
+  --color-amber-200: #fde68a;
+  --color-amber-300: #fcd34d;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #f59e0b;
+  --color-amber-600: #d97706;
+  --color-amber-700: #b45309;
+  --color-amber-800: #92400e;
+  --color-amber-900: #78350f;
+  --color-amber-950: #451a03;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Playfair Display", "Georgia", serif;
+}
+
+@layer base {
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+
+  body {
+    @apply bg-white text-slate-900 antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+  }
+}
+
+@layer components {
+  .glass-panel {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .input-field {
+    @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-900/10 transition-all font-medium;
+  }
+
+  .primary-button {
+    @apply bg-navy-900 hover:bg-navy-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-[0.98];
+  }
+}

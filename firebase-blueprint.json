@@ -1,0 +1,49 @@
+{
+  "entities": {
+    "User": {
+      "title": "Staff User",
+      "description": "Represents a university staff member (Employee or Admin).",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["employee", "admin"] },
+        "department": { "type": "string" },
+        "totalLeaveDays": { "type": "number", "description": "Total annual leave entitlement" },
+        "usedLeaveCount": { "type": "number", "description": "Number of leave days already taken" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["uid", "email", "name", "role", "totalLeaveDays", "usedLeaveCount"]
+    },
+    "LeaveRequest": {
+      "title": "Leave Request",
+      "description": "A request for time off submitted by an employee.",
+      "type": "object",
+      "properties": {
+        "employeeId": { "type": "string" },
+        "employeeName": { "type": "string" },
+        "department": { "type": "string" },
+        "startDate": { "type": "string", "format": "date-time" },
+        "endDate": { "type": "string", "format": "date-time" },
+        "type": { "type": "string", "enum": ["Annual", "Sick", "Personal", "Maternity/Paternity", "Study"] },
+        "status": { "type": "string", "enum": ["Pending", "Approved", "Rejected"] },
+        "reason": { "type": "string" },
+        "submittedAt": { "type": "number" },
+        "handledAt": { "type": "number" },
+        "adminComment": { "type": "string" }
+      },
+      "required": ["employeeId", "employeeName", "startDate", "endDate", "type", "status", "reason", "submittedAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and settings."
+    },
+    "leaveRequests/{requestId}": {
+      "schema": "LeaveRequest",
+      "description": "Central repository for all staff leave requests."
+    }
+  }
+}
