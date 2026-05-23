@@ -117,6 +117,17 @@ export const userService = {
     }, (e) => handleFirestoreError(e, OperationTypeLocal.LIST, 'users'));
   },
 
+  listenUserProfile(uid: string, callback: (user: UserProfile | null) => void) {
+    const docRef = doc(db, 'users', uid);
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        callback(snap.data() as UserProfile);
+      } else {
+        callback(null);
+      }
+    }, (e) => handleFirestoreError(e, OperationTypeLocal.GET, `users/${uid}`));
+  },
+
   async updateProfile(uid: string, data: Partial<UserProfile>) {
     const path = `users/${uid}`;
     try {

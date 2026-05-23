@@ -230,6 +230,8 @@ const AcademicFeatures = () => {
   );
 }
 
+let isRegistering = false;
+
 export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -240,15 +242,55 @@ export default function App() {
   const t = translations[lang];
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (u) => {
+    let unsubscribeProfile: (() => void) | null = null;
+    
+    const unsubscribeAuth = onAuthStateChanged(auth, (u) => {
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = null;
+      }
+      
       if (u) {
-        const profile = await userService.getProfile(u.uid);
-        setCurrentUser(profile);
+        setLoading(true);
+        unsubscribeProfile = userService.listenUserProfile(u.uid, async (profile) => {
+          if (!profile) {
+            if (isRegistering) {
+              return;
+            }
+            try {
+              const empNo = await userService.getNextEmployeeNumber();
+              const newProfile: UserProfile = {
+                uid: u.uid,
+                email: u.email || '',
+                name: u.displayName || u.email?.split('@')[0] || 'Faculty Member',
+                role: 'employee',
+                department: 'Academic',
+                totalLeaveDays: 25,
+                usedLeaveCount: 0,
+                createdAt: Date.now(),
+                employeeNo: empNo
+              };
+              await userService.createProfile(newProfile);
+            } catch (err) {
+              console.error("Error creating fallback profile:", err);
+              setCurrentUser(null);
+              setLoading(false);
+            }
+          } else {
+            setCurrentUser(profile);
+            setLoading(false);
+          }
+        });
       } else {
         setCurrentUser(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+    };
   }, []);
 
   if (loading) return (
@@ -389,6 +431,10 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    setRole(initialRole);
+  }, [initialRole]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -397,6 +443,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
       if (mode === 'login') {
         await signInWithEmailAndPassword(auth, email, password);
       } else {
+        isRegistering = true;
         const cred = await createUserWithEmailAndPassword(auth, email, password);
         const empNo = await userService.getNextEmployeeNumber();
         await userService.createProfile({
@@ -415,6 +462,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
     } catch (err: any) {
       setError(err.message);
     } finally {
+      isRegistering = false;
       setLoading(false);
     }
   };

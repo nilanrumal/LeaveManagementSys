@@ -24,7 +24,8 @@ import {
   UserCheck,
   AlertTriangle,
   FolderMinus,
-  Briefcase
+  Briefcase,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
@@ -38,7 +39,7 @@ interface PortalProps {
 }
 
 export default function Portal({ user }: PortalProps) {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports'>('dashboard');
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -46,6 +47,12 @@ export default function Portal({ user }: PortalProps) {
   // Filters
   const [filter, setFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
+
+  // Report Filter States
+  const [reportPeriod, setReportPeriod] = useState<'1m' | '3m' | '6m' | '1y' | 'all'>('3m');
+  const [reportTypeFilter, setReportTypeFilter] = useState<string>('All');
+  const [reportDeptFilter, setReportDeptFilter] = useState<string>(user?.department || 'All');
+  const [reportEmployeeFilter, setReportEmployeeFilter] = useState<string>('All');
 
   // Admin Profile Management States
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -86,33 +93,68 @@ export default function Portal({ user }: PortalProps) {
 
   // Dynamic overlap detector for HOD / CEO
   const checkActingPersonConflict = (request: LeaveRequest) => {
-    if (!request.actingEmployeeNo) return { hasConflict: false, name: '', empNo: '' };
+    if (!request.actingEmployeeNo) return { hasConflict: false, name: '', empNo: '', message: '' };
     
     // Find acting person profile details
     const actingPersonnel = allUsers.find(
-      u => u.employeeNo?.toLowerCase() === request.actingEmployeeNo?.toLowerCase()
+      u => u.employeeNo?.trim().toLowerCase() === request.actingEmployeeNo?.trim().toLowerCase()
     );
 
     if (!actingPersonnel) {
-      return { hasConflict: false, name: 'Unknown Staff', empNo: request.actingEmployeeNo };
+      return { hasConflict: false, name: 'Unknown Staff', empNo: request.actingEmployeeNo, message: '' };
     }
 
-    // Look for approved leaves of the acting person that overlap with requested leave dates
     const s1 = new Date(request.startDate).getTime();
     const e1 = new Date(request.endDate).getTime();
 
-    const overlappingLeave = leaves.find(l => {
+    // Conflict 1: The acting staff themself is on approved leave during this time
+    const overlappingOwnLeave = leaves.find(l => {
       if (l.employeeId !== actingPersonnel.uid || l.status !== 'Approved') return false;
+      if (l.id === request.id) return false;
       const s2 = new Date(l.startDate).getTime();
       const e2 = new Date(l.endDate).getTime();
       return s1 <= e2 && s2 <= e1; // Dates overlap
     });
 
+    // Conflict 2: The acting staff is already assigned as acting for another non-rejected leave request during the same dates
+    const overlappingActingAssign = leaves.find(l => {
+      if (l.id === request.id) return false;
+      if (l.status === 'Rejected') return false;
+      if (!l.actingEmployeeNo) return false;
+      if (l.actingEmployeeNo.trim().toLowerCase() !== request.actingEmployeeNo.trim().toLowerCase()) return false;
+      
+      const s2 = new Date(l.startDate).getTime();
+      const e2 = new Date(l.endDate).getTime();
+      return s1 <= e2 && s2 <= e1; // Dates overlap
+    });
+
+    if (overlappingOwnLeave) {
+      return {
+        hasConflict: true,
+        conflictType: 'on-leave',
+        name: actingPersonnel.name,
+        empNo: actingPersonnel.employeeNo,
+        overlappingPeriod: `${format(new Date(overlappingOwnLeave.startDate), 'MMM d')} - ${format(new Date(overlappingOwnLeave.endDate), 'MMM d')}`,
+        message: `On approved leave (${format(new Date(overlappingOwnLeave.startDate), 'MMM d')} - ${format(new Date(overlappingOwnLeave.endDate), 'MMM d')})`
+      };
+    }
+
+    if (overlappingActingAssign) {
+      return {
+        hasConflict: true,
+        conflictType: 'already-acting',
+        name: actingPersonnel.name,
+        empNo: actingPersonnel.employeeNo,
+        overlappingPeriod: `${format(new Date(overlappingActingAssign.startDate), 'MMM d')} - ${format(new Date(overlappingActingAssign.endDate), 'MMM d')}`,
+        message: `Double-booked! Already acting for ${overlappingActingAssign.employeeName} (${format(new Date(overlappingActingAssign.startDate), 'MMM d')} - ${format(new Date(overlappingActingAssign.endDate), 'MMM d')})`
+      };
+    }
+
     return {
-      hasConflict: !!overlappingLeave,
+      hasConflict: false,
       name: actingPersonnel.name,
       empNo: actingPersonnel.employeeNo,
-      overlappingPeriod: overlappingLeave ? `${format(new Date(overlappingLeave.startDate), 'MMM d')} - ${format(new Date(overlappingLeave.endDate), 'MMM d')}` : undefined
+      message: ''
     };
   };
 
@@ -254,6 +296,16 @@ export default function Portal({ user }: PortalProps) {
             />
           )}
 
+          {/* Leave Analytics & Reports Tab */}
+          {(user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
+            <SidebarLink
+              icon={BarChart3}
+              label="Leave Reports"
+              active={activeTab === 'reports'}
+              onClick={() => setActiveTab('reports')}
+            />
+          )}
+
           {/* Leave History / Total lists */}
           <SidebarLink 
             icon={Clock} 
@@ -320,12 +372,14 @@ export default function Portal({ user }: PortalProps) {
               {activeTab === 'admin' && 'University Directory Administration'}
               {activeTab === 'approvals' && `${user.role === 'hod' ? 'Departmental' : 'Executive'} Leave Approvals`}
               {activeTab === 'history' && 'Leave History Ledger'}
+              {activeTab === 'reports' && 'Academic Leave Analytics & Reports'}
               {activeTab === 'dashboard' && `Academic Portal: Welcome, ${user.name}`}
             </h1>
             <p className="text-sm text-slate-500">
               {activeTab === 'admin' && 'Organize faculty access tiers, leave allowances, and campus roles.'}
               {activeTab === 'approvals' && `Evaluate requests and check acting-person vacancy overlapping dates.`}
               {activeTab === 'history' && 'Audit log of all registered time off transactions.'}
+              {activeTab === 'reports' && 'Generate and filter high-fidelity institutional leave reports across multiple timeframes.'}
               {activeTab === 'dashboard' && 'Access details, keep track of holiday allocation, and check approval states.'}
             </p>
           </div>
@@ -492,9 +546,15 @@ export default function Portal({ user }: PortalProps) {
                         </td>
                         <td className="px-6 py-4">
                           {leave.actingEmployeeNo ? (
-                            <div>
+                            <div className="space-y-1">
                                <p className="text-sm font-bold text-navy-900">{actInfo.name}</p>
                                <p className="text-xs text-slate-500 font-mono">ID: {actInfo.empNo}</p>
+                               {actInfo.hasConflict && (
+                                 <div className="flex items-center gap-1 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-semibold border border-red-100 max-w-[180px]">
+                                    <AlertTriangle size={10} className="text-red-500 flex-shrink-0" />
+                                    <span className="truncate" title={actInfo.message}>{actInfo.message}</span>
+                                 </div>
+                               )}
                             </div>
                           ) : (
                             <span className="text-xs text-slate-400 italic">None Assigned</span>
@@ -531,6 +591,351 @@ export default function Portal({ user }: PortalProps) {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* -------------------- TAB: REPORTS (HOD, CEO & ADMIN) -------------------- */}
+        {activeTab === 'reports' && (user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
+          <div className="space-y-8 print:p-0">
+             {/* Report Action Panels */}
+             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
+                <div>
+                   <h3 className="font-bold text-navy-900 font-serif italic text-lg">Report Configurations</h3>
+                   <p className="text-xs text-slate-500 mt-1">Specify parameters to isolate departments, employee nodes, and timeframes.</p>
+                </div>
+                <div className="flex gap-3">
+                   <button 
+                     onClick={() => window.print()}
+                     className="bg-slate-100 hover:bg-slate-200 text-navy-900 border border-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 text-xs transition"
+                   >
+                     <Printer size={15} /> Print/PDF Report
+                   </button>
+                </div>
+             </div>
+
+             {/* Dynamic Multi-Section Filter Matrix */}
+             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                   <Filter size={16} className="text-amber-500" />
+                   <h4 className="text-xs uppercase font-mono tracking-widest text-slate-400 font-bold">Query Parameters</h4>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                   {/* Period filter */}
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Timeframe Range</label>
+                      <select 
+                        value={reportPeriod} 
+                        onChange={(e: any) => setReportPeriod(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                      >
+                        <option value="1m">1 Month (Past 30 Days)</option>
+                        <option value="3m">3 Months (Past 90 Days)</option>
+                        <option value="6m">6 Months (Past 180 Days)</option>
+                        <option value="1y">1 Year (Past 365 Days)</option>
+                        <option value="all">All-Time Institutional Data</option>
+                      </select>
+                   </div>
+
+                   {/* Department filter */}
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Department / Faculty</label>
+                      <select 
+                        value={reportDeptFilter} 
+                        onChange={(e) => {
+                          setReportDeptFilter(e.target.value);
+                          setReportEmployeeFilter('All');
+                        }}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                      >
+                        <option value="All">All Departments</option>
+                        <option value="Academic">Academic</option>
+                        <option value="Humanities">Humanities</option>
+                        <option value="Engineering">Engineering</option>
+                        <option value="Medicine">Medicine</option>
+                        <option value="Science">Science</option>
+                      </select>
+                   </div>
+
+                   {/* Employee filter */}
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Specific Academic Node</label>
+                      <select 
+                        value={reportEmployeeFilter} 
+                        onChange={(e) => setReportEmployeeFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                      >
+                        <option value="All">All Department Employees</option>
+                        {allUsers
+                          .filter(u => reportDeptFilter === 'All' || u.department === reportDeptFilter)
+                          .map(u => (
+                             <option key={u.uid} value={u.uid}>
+                               {u.name} ({u.employeeNo || 'No ID'})
+                             </option>
+                          ))
+                        }
+                      </select>
+                   </div>
+
+                   {/* Leave Type filter */}
+                   <div>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Leave Sub-category</label>
+                      <select 
+                        value={reportTypeFilter} 
+                        onChange={(e) => setReportTypeFilter(e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                      >
+                        <option value="All">All Leave Types</option>
+                        <option value="Annual">Annual Leave</option>
+                        <option value="Sick">Sick Leave</option>
+                        <option value="Personal">Personal Leave</option>
+                        <option value="Maternity/Paternity">Maternity/Paternity</option>
+                        <option value="Study">Study Leave</option>
+                      </select>
+                   </div>
+                </div>
+             </div>
+
+             {/* COMPUTE DERIVED LEAVE STATISTICS */}
+             {(() => {
+                const now = Date.now();
+                const filteredListByPeriod = leaves.filter(l => {
+                   // Timeframe check
+                   if (reportPeriod !== 'all') {
+                      const rangeDays = reportPeriod === '1m' ? 30 : reportPeriod === '3m' ? 90 : reportPeriod === '6m' ? 180 : 365;
+                      const leaveTime = new Date(l.startDate).getTime();
+                      const daysDiff = (now - leaveTime) / (1000 * 60 * 60 * 24);
+                      // Include leaves around the current date window to handle mock entries flexibly
+                      if (Math.abs(daysDiff) > rangeDays) return false;
+                   }
+
+                   // Department check
+                   if (reportDeptFilter !== 'All' && l.department !== reportDeptFilter) return false;
+
+                   // Employee check
+                   if (reportEmployeeFilter !== 'All' && l.employeeId !== reportEmployeeFilter) return false;
+
+                   // Type check
+                   if (reportTypeFilter !== 'All' && l.type !== reportTypeFilter) return false;
+
+                   return true;
+                });
+
+                // Derived analytics
+                let approvedDays = 0;
+                let pendingRequests = 0;
+                let approvedRequests = 0;
+                let rejectedRequests = 0;
+
+                const leaveTypeCounts: Record<string, number> = {
+                  Annual: 0,
+                  Sick: 0,
+                  Personal: 0,
+                  'Maternity/Paternity': 0,
+                  Study: 0
+                };
+
+                filteredListByPeriod.forEach(l => {
+                   const duration = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                   if (l.status === 'Approved') {
+                      approvedDays += duration;
+                      approvedRequests++;
+                   } else if (l.status === 'Pending') {
+                      pendingRequests++;
+                   } else if (l.status === 'Rejected') {
+                      rejectedRequests++;
+                   }
+                   if (leaveTypeCounts[l.type] !== undefined) {
+                      leaveTypeCounts[l.type]++;
+                   }
+                });
+
+                const totalRequests = filteredListByPeriod.length;
+                const approvalRate = totalRequests > 0 ? Math.round((approvedRequests / totalRequests) * 100) : 100;
+
+                return (
+                  <div className="space-y-8 animate-fade-in">
+                     {/* Creative Dashboard KPIs */}
+                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-gradient-to-br from-navy-900 to-slate-900 text-white p-6 rounded-3xl relative overflow-hidden shadow-sm">
+                           <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-5">
+                              <Calendar size={180} />
+                           </div>
+                           <p className="text-[10px] font-mono tracking-wider text-amber-400 font-bold uppercase">Total Approved Days</p>
+                           <p className="text-4xl font-serif font-bold mt-2">{approvedDays}</p>
+                           <p className="text-xs text-white/60 mt-2 font-medium">Approved calendar leave days</p>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Approval Rate</p>
+                           <p className="text-4xl font-serif font-bold mt-2 text-navy-950">{approvalRate}%</p>
+                           <div className="mt-2.5 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-emerald-500 h-full" style={{ width: `${approvalRate}%` }} />
+                           </div>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">{approvedRequests} of {totalRequests} applications</p>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">In Evaluation Pipeline</p>
+                           <p className="text-4xl font-serif font-bold mt-2 text-amber-500">{pendingRequests}</p>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">Pending approvals</p>
+                        </div>
+
+                        <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Total Transactions</p>
+                           <p className="text-4xl font-serif font-bold mt-2 text-navy-950">{totalRequests}</p>
+                           <p className="text-xs text-slate-500 mt-2 font-medium">Requests in selected timeframe</p>
+                        </div>
+                     </div>
+
+                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        {/* Creative Leave Distribution Bar Chart */}
+                        <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm lg:col-span-5">
+                           <h4 className="font-serif italic font-bold text-navy-900 mb-6 text-base">Distribution by Leave Category</h4>
+                           <div className="space-y-4">
+                              {Object.entries(leaveTypeCounts).map(([type, val]) => {
+                                 const pct = totalRequests > 0 ? Math.round((val / totalRequests) * 100) : 0;
+                                 const barColor = {
+                                    Annual: 'bg-emerald-500',
+                                    Sick: 'bg-rose-500',
+                                    Personal: 'bg-indigo-500',
+                                    'Maternity/Paternity': 'bg-purple-500',
+                                    Study: 'bg-amber-500'
+                                 }[type] || 'bg-slate-400';
+                                 
+                                 return (
+                                    <div key={type} className="space-y-1">
+                                       <div className="flex justify-between text-xs text-slate-600 font-bold">
+                                          <span>{type} Leave</span>
+                                          <span>{val} ({pct}%)</span>
+                                       </div>
+                                       <div className="w-full bg-slate-50 rounded-full h-3 border border-slate-100 overflow-hidden">
+                                          <motion.div 
+                                             className={`h-full ${barColor}`} 
+                                             initial={{ width: 0 }}
+                                             animate={{ width: `${pct}%` }}
+                                             transition={{ duration: 0.6, ease: 'easeOut' }}
+                                          />
+                                       </div>
+                                    </div>
+                                 );
+                              })}
+                           </div>
+                        </div>
+
+                        {/* Leave Trend & Summary Insights */}
+                        <div className="bg-navy-950 text-white/90 p-6 rounded-3xl shadow-sm lg:col-span-7 flex flex-col justify-between">
+                           <div>
+                              <h4 className="font-serif italic font-bold text-amber-400 mb-4 text-base">Institutional Insights Summary</h4>
+                              <div className="space-y-4 text-xs font-sans">
+                                 <p className="leading-relaxed">
+                                    This visual report consolidates active leave datasets within your faculty department. Academic personnel resource availability is tracked dynamically against ongoing academic and administrative schedules.
+                                 </p>
+                                 <div className="grid grid-cols-2 gap-4 mt-6">
+                                    <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                                       <p className="text-white/40 text-[10px] uppercase font-mono font-bold tracking-wider">Department Strain</p>
+                                       <p className="text-sm font-bold text-white mt-1">
+                                          {pendingRequests > 0 ? 'Evaluating Demands' : 'Optimal Capacity'}
+                                       </p>
+                                    </div>
+                                    <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
+                                       <p className="text-white/40 text-[10px] uppercase font-mono font-bold tracking-wider">Health/Sick Ratio</p>
+                                       <p className="text-sm font-bold text-white mt-1">
+                                          {totalRequests > 0 ? `${Math.round((leaveTypeCounts['Sick'] / totalRequests) * 100)}% of Leaves` : '0%'}
+                                       </p>
+                                    </div>
+                                 </div>
+                              </div>
+                           </div>
+                           <div className="pt-6 border-t border-white/5 mt-6 text-[10px] text-white/40 flex justify-between">
+                              <span>Department Filter Context: {reportDeptFilter}</span>
+                              <span>Timestamp: {format(new Date(), 'yyyy-MM-dd HH:mm')}</span>
+                           </div>
+                        </div>
+                     </div>
+
+                     {/* Main Report Table */}
+                     <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                           <h4 className="font-serif italic font-bold text-navy-900 text-base">Leave Records Table Ledger</h4>
+                           <span className="text-[10px] font-mono bg-navy-900/5 text-navy-950 font-bold px-3 py-1 rounded-full">{filteredListByPeriod.length} Records</span>
+                        </div>
+                        <div className="overflow-x-auto">
+                           <table className="w-full text-left border-collapse font-sans">
+                              <thead>
+                                 <tr className="bg-slate-50 text-[10px] font-mono tracking-wider text-slate-400 uppercase border-b border-slate-100">
+                                    <th className="px-6 py-4">Employee</th>
+                                    <th className="px-6 py-4">Department</th>
+                                    <th className="px-6 py-4">Leave Range (Days)</th>
+                                    <th className="px-6 py-4">Type</th>
+                                    <th className="px-6 py-4">Acting Staff</th>
+                                    <th className="px-6 py-4">Status</th>
+                                    <th className="px-6 py-4">Reason</th>
+                                 </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100 text-xs">
+                                 {filteredListByPeriod.length > 0 ? (
+                                    filteredListByPeriod.map((l) => {
+                                       const actInfo = checkActingPersonConflict(l);
+                                       const days = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                                       return (
+                                          <tr key={l.id} className="hover:bg-slate-50/30 transition-colors">
+                                             <td className="px-6 py-4 font-bold text-navy-950">
+                                                <div>
+                                                   <p>{l.employeeName}</p>
+                                                   <p className="text-[10px] text-slate-400 font-mono font-medium">#{l.employeeNo}</p>
+                                                </div>
+                                             </td>
+                                             <td className="px-6 py-4 text-slate-600">{l.department}</td>
+                                             <td className="px-6 py-4 font-medium text-slate-700">
+                                                <div>
+                                                   <p>{format(new Date(l.startDate), 'MMM d')} - {format(new Date(l.endDate), 'MMM d, yyyy')}</p>
+                                                   <p className="text-[10px] text-amber-600 font-bold mt-0.5">{days} {days === 1 ? 'day' : 'days'}</p>
+                                                </div>
+                                             </td>
+                                             <td className="px-6 py-4 font-semibold text-slate-600">{l.type}</td>
+                                              <td className="px-6 py-4">
+                                                 {l.actingEmployeeNo ? (
+                                                    <div className="space-y-1">
+                                                       <p className="text-[11px] font-bold text-navy-900">{actInfo.name}</p>
+                                                       <p className="text-[10px] text-slate-500 font-mono">ID: {actInfo.empNo}</p>
+                                                       {actInfo.hasConflict && (
+                                                         <div className="flex items-center gap-1 text-[9px] text-red-600 bg-red-50 px-1.5 py-0.5 border border-red-150 rounded font-semibold max-w-[150px]">
+                                                            <AlertTriangle size={8} className="text-red-500 flex-shrink-0" />
+                                                            <span className="truncate" title={actInfo.message}>{actInfo.message}</span>
+                                                         </div>
+                                                       )}
+                                                    </div>
+                                                 ) : (
+                                                    <span className="text-xs text-slate-400 italic font-medium">None</span>
+                                                 )}
+                                              </td>
+                                             <td className="px-6 py-4">
+                                                <StatusBadge status={l.status} />
+                                             </td>
+                                             <td className="px-6 py-4 text-slate-500 max-w-[200px] truncate" title={l.reason}>
+                                                {l.reason}
+                                             </td>
+                                          </tr>
+                                       );
+                                    })
+                                 ) : (
+                                    <tr>
+                                       <td colSpan={7} className="px-6 py-16 text-center text-slate-400">
+                                          <div className="flex flex-col items-center gap-2">
+                                             <FolderMinus size={48} className="opacity-10 text-navy-900" />
+                                             <p className="font-bold text-sm">No transaction records in this interval.</p>
+                                             <p className="text-xs">Loosen filters to load historical data logs.</p>
+                                          </div>
+                                       </td>
+                                    </tr>
+                                 )}
+                              </tbody>
+                           </table>
+                        </div>
+                     </div>
+                  </div>
+                );
+             })()}
           </div>
         )}
 
@@ -592,9 +997,12 @@ export default function Portal({ user }: PortalProps) {
                                 <p className="text-sm font-bold text-navy-950">{actCheck.name}</p>
                                 <p className="text-xs font-mono text-slate-400 font-bold">{actCheck.empNo}</p>
                                 {actCheck.hasConflict ? (
-                                  <div className="flex items-center gap-1.5 text-xs text-red-600 bg-red-50 border border-red-100 px-2 py-1 rounded-lg font-bold">
-                                     <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
-                                     <span>On approved leave {actCheck.overlappingPeriod}!</span>
+                                  <div className="flex flex-col gap-1 text-xs text-red-600 bg-red-50 border border-red-150 p-2 rounded-xl font-bold animate-pulse">
+                                     <div className="flex items-center gap-1 text-red-700">
+                                        <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
+                                        <span>Conflict Clashing!</span>
+                                     </div>
+                                     <span className="text-[10px] text-red-500 font-medium font-sans leading-relaxed">{actCheck.message}</span>
                                   </div>
                                 ) : (
                                   <span className="inline-block text-[10px] text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-md font-bold">
@@ -677,9 +1085,9 @@ export default function Portal({ user }: PortalProps) {
                     <th className="px-6 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {allUsers.filter(u => u.name.toLowerCase().includes(filter.toLowerCase()) || u.employeeNo?.toLowerCase().includes(filter.toLowerCase())).length > 0 ? (
-                    allUsers.filter(u => u.name.toLowerCase().includes(filter.toLowerCase()) || u.employeeNo?.toLowerCase().includes(filter.toLowerCase())).map((usr) => (
+                <tbody className="divide-y divide-slate-100 font-sans">
+                  {allUsers.filter(u => (u.name || '').toLowerCase().includes(filter.toLowerCase()) || (u.employeeNo || '').toLowerCase().includes(filter.toLowerCase())).length > 0 ? (
+                    allUsers.filter(u => (u.name || '').toLowerCase().includes(filter.toLowerCase()) || (u.employeeNo || '').toLowerCase().includes(filter.toLowerCase())).map((usr) => (
                       <tr key={usr.uid} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
@@ -751,6 +1159,7 @@ export default function Portal({ user }: PortalProps) {
             user={user} 
             onClose={() => setIsApplyModalOpen(false)} 
             allUsers={allUsers}
+            leaves={leaves}
           />
         )}
       </AnimatePresence>
@@ -842,6 +1251,7 @@ export default function Portal({ user }: PortalProps) {
                      value={editingUser.department}
                      onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })}
                    >
+                      <option>Academic</option>
                       <option>Humanities</option>
                       <option>Engineering</option>
                       <option>Medicine</option>
@@ -1053,7 +1463,7 @@ const ProfileDisplayField = ({ label, value, highlight, badge }: { label: string
 };
 
 // Leave request Form Modal (including Acting Person verification errorDialog and checker)
-const LeaveRequestModal = ({ user, onClose, allUsers }: { user: UserProfile, onClose: () => void, allUsers: UserProfile[] }) => {
+const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProfile, onClose: () => void, allUsers: UserProfile[], leaves: LeaveRequest[] }) => {
   const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     startDate: '',
@@ -1100,6 +1510,39 @@ const LeaveRequestModal = ({ user, onClose, allUsers }: { user: UserProfile, onC
 
     if (start > end) {
       setError('The start date must be before the end date.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const s1 = start.getTime();
+    const e1 = end.getTime();
+
+    // Check 1: Does the acting person themself have approved leave in overlapping dates?
+    const overlappingOwnLeave = leaves.find(l => {
+      if (l.employeeId !== matchedProfile.uid || l.status !== 'Approved') return false;
+      const s2 = new Date(l.startDate).getTime();
+      const e2 = new Date(l.endDate).getTime();
+      return s1 <= e2 && s2 <= e1;
+    });
+
+    if (overlappingOwnLeave) {
+      setErrorDialogMsg(`Conflict Alert! The nominated acting person "${matchedProfile.name}" is already scheduled on approved leave during this period (${format(new Date(overlappingOwnLeave.startDate), 'MMM d')} - ${format(new Date(overlappingOwnLeave.endDate), 'MMM d')}). Please designate another eligible colleague.`);
+      setIsSubmitting(false);
+      return;
+    }
+
+    // Check 2: Is the nominated colleague already assigned as acting staff in another overlapping leave?
+    const overlappingActingAssign = leaves.find(l => {
+      if (l.status === 'Rejected') return false;
+      if (!l.actingEmployeeNo) return false;
+      if (l.actingEmployeeNo.trim().toLowerCase() !== formData.actingEmployeeNo.trim().toLowerCase()) return false;
+      const s2 = new Date(l.startDate).getTime();
+      const e2 = new Date(l.endDate).getTime();
+      return s1 <= e2 && s2 <= e1;
+    });
+
+    if (overlappingActingAssign) {
+      setErrorDialogMsg(`Double-Booking Conflict! The nominated acting person "${matchedProfile.name}" is already assigned/nominated as the acting representative for "${overlappingActingAssign.employeeName}" during this overlapping period (${format(new Date(overlappingActingAssign.startDate), 'MMM d')} - ${format(new Date(overlappingActingAssign.endDate), 'MMM d')}). Please select another eligible colleague.`);
       setIsSubmitting(false);
       return;
     }
