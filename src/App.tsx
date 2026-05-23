@@ -132,18 +132,9 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 
           <button 
             onClick={onOpenPortal}
-            className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold transition-all border ${
-              isScrolled ? 'border-slate-200 text-navy-900 hover:bg-slate-50' : 'border-white/30 text-white hover:bg-white/10'
-            }`}
+            className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-6 py-2.5 rounded-full text-sm font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
           >
-            <User size={16} /> Staff
-          </button>
-          
-          <button 
-            onClick={onOpenPortal}
-            className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-lg transition-transform active:scale-95"
-          >
-            {t.applyNow}
+            <User size={16} /> Login
           </button>
 
           <button onClick={() => setMobileMenuOpen(true)} className={`lg:hidden p-2 rounded-lg ${isScrolled ? 'text-navy-900' : 'text-white'}`}>
@@ -243,6 +234,7 @@ export default function App() {
   const [lang, setLang] = useState<Language>('en');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [initialRole, setInitialRole] = useState<UserRole>('employee');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const t = translations[lang];
@@ -276,8 +268,8 @@ export default function App() {
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
       <main className="min-h-screen bg-white font-sans selection:bg-amber-100 selection:text-navy-900">
-        <Navbar onOpenPortal={() => { setAuthMode('register'); setIsAuthModalOpen(true); }} />
-        <Hero onOpenPortal={() => { setAuthMode('register'); setIsAuthModalOpen(true); }} />
+        <Navbar onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
+        <Hero onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
         <AcademicFeatures />
 
         <section className="py-32 bg-navy-900 text-white relative overflow-hidden">
@@ -315,7 +307,53 @@ export default function App() {
              <div className="flex items-center justify-center gap-3 mb-8">
                 <GraduationCap size={32} className="text-navy-900" />
                 <span className="font-serif font-bold text-2xl italic">GLOBAL HORIZON</span>
-             </div>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enrollment Portal Setup:</span>
+                <div className="flex flex-wrap gap-3 justify-center">
+                  <button
+                    onClick={() => {
+                      setInitialRole('employee');
+                      setAuthMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="bg-navy-900 text-white hover:bg-navy-850 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    <User size={14} /> Create Staff Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInitialRole('hod');
+                      setAuthMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    <User size={14} /> Create HOD Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInitialRole('ceo');
+                      setAuthMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    <User size={14} /> Create CEO Profile
+                  </button>
+                  <button
+                    onClick={() => {
+                      setInitialRole('admin');
+                      setAuthMode('register');
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="bg-amber-500 text-navy-950 hover:bg-amber-600 hover:text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  >
+                    <ShieldCheck size={14} /> Create Admin Profile
+                  </button>
+                </div>
+              </div>
+
              <p className="text-slate-400 text-sm max-w-xl mx-auto leading-loose mb-8">
                © 2026 Global Horizon University. SEO Optimized & Secure Student Portal. All staff actions are audited for security compliance.
              </p>
@@ -333,6 +371,7 @@ export default function App() {
               mode={authMode} 
               setMode={setAuthMode} 
               onClose={() => setIsAuthModalOpen(false)} 
+              initialRole={initialRole}
             />
           )}
         </AnimatePresence>
@@ -341,11 +380,11 @@ export default function App() {
   );
 }
 
-const AuthModal = ({ mode, setMode, onClose }: { mode: 'login' | 'register', setMode: (m: 'login' | 'register') => void, onClose: () => void }) => {
+const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode: 'login' | 'register', setMode: (m: 'login' | 'register') => void, onClose: () => void, initialRole?: UserRole }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<UserRole>('employee');
+  const [role, setRole] = useState<UserRole>(initialRole);
   const [dept, setDept] = useState('Academic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -359,6 +398,7 @@ const AuthModal = ({ mode, setMode, onClose }: { mode: 'login' | 'register', set
         await signInWithEmailAndPassword(auth, email, password);
       } else {
         const cred = await createUserWithEmailAndPassword(auth, email, password);
+        const empNo = await userService.getNextEmployeeNumber();
         await userService.createProfile({
           uid: cred.user.uid,
           email,
@@ -367,7 +407,8 @@ const AuthModal = ({ mode, setMode, onClose }: { mode: 'login' | 'register', set
           department: dept,
           totalLeaveDays: role === 'admin' ? 30 : 25,
           usedLeaveCount: 0,
-          createdAt: Date.now()
+          createdAt: Date.now(),
+          employeeNo: empNo
         });
       }
       onClose();
@@ -411,6 +452,8 @@ const AuthModal = ({ mode, setMode, onClose }: { mode: 'login' | 'register', set
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Access Tier</label>
                     <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="input-field bg-white">
                       <option value="employee">Staff Member</option>
+                      <option value="hod">HOD (Head of Department)</option>
+                      <option value="ceo">CEO</option>
                       <option value="admin">Administrator</option>
                     </select>
                  </div>

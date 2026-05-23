@@ -12,7 +12,7 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export type UserRole = 'employee' | 'admin';
+export type UserRole = 'employee' | 'admin' | 'hod' | 'ceo';
 
 export interface UserProfile {
   uid: string;
@@ -23,6 +23,7 @@ export interface UserProfile {
   totalLeaveDays: number;
   usedLeaveCount: number;
   createdAt: number;
+  employeeNo: string;
 }
 
 export type LeaveType = 'Annual' | 'Sick' | 'Personal' | 'Maternity/Paternity' | 'Study';
@@ -32,15 +33,18 @@ export interface LeaveRequest {
   id: string;
   employeeId: string;
   employeeName: string;
+  employeeNo: string;
   department: string;
   startDate: string; // ISO string
   endDate: string; // ISO string
   type: LeaveType;
   status: LeaveStatus;
   reason: string;
+  actingEmployeeNo: string;
   submittedAt: number;
   handledAt?: number;
   adminComment?: string;
+  approvedBy?: string;
 }
 
 export interface AppLanguage {

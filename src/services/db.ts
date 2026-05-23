@@ -6,6 +6,7 @@ import {
   setDoc, 
   updateDoc, 
   addDoc,
+  deleteDoc,
   query, 
   where, 
   orderBy,
@@ -58,6 +59,77 @@ export const userService = {
     const path = `users/${profile.uid}`;
     try {
       await setDoc(doc(db, 'users', profile.uid), profile);
+    } catch (e) {
+      handleFirestoreError(e, OperationTypeLocal.WRITE, path);
+    }
+  },
+
+  async getNextEmployeeNumber(): Promise<string> {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      let maxNum = 0;
+      snap.forEach((doc) => {
+        const data = doc.data();
+        const empNo = data.employeeNo;
+        if (empNo && typeof empNo === 'string' && empNo.startsWith('emp')) {
+           const numPart = parseInt(empNo.substring(3), 10);
+           if (!isNaN(numPart) && numPart > maxNum) {
+             maxNum = numPart;
+           }
+        }
+      });
+      const nextNum = maxNum + 1;
+      return `emp${String(nextNum).padStart(5, '0')}`;
+    } catch (e) {
+      console.error('Error auto-generating code:', e);
+      return 'emp00001';
+    }
+  },
+
+  async verifyEmployeeNoExists(empNo: string): Promise<UserProfile | null> {
+    try {
+      const q = query(
+        collection(db, 'users'),
+        where('employeeNo', '==', empNo.trim().toLowerCase())
+      );
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        // also try exact matching just in case
+        const qExact = query(collection(db, 'users'), where('employeeNo', '==', empNo.trim()));
+        const snapExact = await getDocs(qExact);
+        if (snapExact.empty) {
+          return null;
+        }
+        return snapExact.docs[0].data() as UserProfile;
+      }
+      return snap.docs[0].data() as UserProfile;
+    } catch (e) {
+      console.error('Error verifying employee No:', e);
+      return null;
+    }
+  },
+
+  listenAllUsers(callback: (users: UserProfile[]) => void) {
+    const q = query(collection(db, 'users'));
+    return onSnapshot(q, (snap) => {
+      const usersList = snap.docs.map(doc => doc.data() as UserProfile);
+      callback(usersList);
+    }, (e) => handleFirestoreError(e, OperationTypeLocal.LIST, 'users'));
+  },
+
+  async updateProfile(uid: string, data: Partial<UserProfile>) {
+    const path = `users/${uid}`;
+    try {
+      await updateDoc(doc(db, 'users', uid), data);
+    } catch (e) {
+      handleFirestoreError(e, OperationTypeLocal.WRITE, path);
+    }
+  },
+
+  async deleteProfile(uid: string) {
+    const path = `users/${uid}`;
+    try {
+      await deleteDoc(doc(db, 'users', uid));
     } catch (e) {
       handleFirestoreError(e, OperationTypeLocal.WRITE, path);
     }

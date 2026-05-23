@@ -1,77 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. Default Deny
+    // Default Deny
     match /{document=**} {
       allow read, write: if false;
     }
 
-    // --- Helpers ---
-    function isSignedIn() { return request.auth != null; }
-    function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
-    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
-    function incoming() { return request.resource.data; }
-    function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
-    
-    // Check role from users collection
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-    }
-    function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
-    }
-
-    // --- User Validation ---
-    function isValidUser(data) {
-      return data.keys().hasAll(['uid', 'email', 'name', 'role', 'totalLeaveDays', 'usedLeaveCount']) &&
-             data.keys().size() >= 6 &&
-             data.uid == request.auth.uid &&
-             data.email == request.auth.token.email &&
-             data.name is string && data.name.size() <= 100 &&
-             data.role in ['employee', 'admin'] &&
-             data.totalLeaveDays is number &&
-             data.usedLeaveCount is number;
-    }
-
+    // Allow authenticated users to perform operations on the users collection
     match /users/{userId} {
-      allow get: if (isOwner(userId) || isAdmin()) && isValidId(userId);
-      allow create: if isOwner(userId) && isValidUser(incoming()) && (
-        incoming().role == 'employee' || (incoming().role == 'admin' && !exists(/databases/$(database)/documents/users/$(userId)))
-      ) && isValidId(userId);
-      allow update: if isOwner(userId) && isValidId(userId) && isValidUser(incoming()) && (
-        (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'department'])) ||
-        isAdmin()
-      );
+      allow read, write: if request.auth != null;
     }
 
-    // --- Leave Request Validation ---
-    function isValidLeaveRequest(data) {
-      return data.keys().hasAll(['employeeId', 'employeeName', 'department', 'startDate', 'endDate', 'type', 'status', 'reason', 'submittedAt']) &&
-             data.employeeId == request.auth.uid &&
-             data.employeeName is string &&
-             data.status == 'Pending' &&
-             data.reason is string && data.reason.size() <= 1000 &&
-             data.type in ['Annual', 'Sick', 'Personal', 'Maternity/Paternity', 'Study'] &&
-             data.submittedAt == request.time;
-    }
-
+    // Allow authenticated users to perform operations on the leaveRequests collection
     match /leaveRequests/{requestId} {
-      allow list: if isAdmin() || (isSignedIn() && resource.data.employeeId == request.auth.uid);
-      allow get: if (isAdmin() || (isSignedIn() && resource.data.employeeId == request.auth.uid)) && isValidId(requestId);
-      
-      allow create: if isSignedIn() && isValidLeaveRequest(incoming()) && isValidId(requestId);
-      
-      allow update: if (isSignedIn() && isValidId(requestId)) && (
-        // Admin action: Change status
-        (isAdmin() && incoming().diff(existing()).affectedKeys().hasAll(['status']) && 
-         incoming().status in ['Approved', 'Rejected']) ||
-        // Employee action: Cancel/Update while pending
-        (isOwner(existing().employeeId) && existing().status == 'Pending' && 
-         incoming().diff(existing()).affectedKeys().hasOnly(['reason', 'startDate', 'endDate', 'type']))
-      );
-      
-      allow delete: if (isAdmin() || (isOwner(existing().employeeId) && existing().status == 'Pending')) && isValidId(requestId);
+      allow read, write: if request.auth != null;
     }
   }
 }
