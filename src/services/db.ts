@@ -81,12 +81,21 @@ export const leaveService = {
   listenUserLeaves(uid: string, callback: (leaves: LeaveRequest[]) => void) {
     const q = query(
       collection(db, 'leaveRequests'), 
-      where('employeeId', '==', uid),
-      orderBy('submittedAt', 'desc')
+      where('employeeId', '==', uid)
     );
     return onSnapshot(q, (snap) => {
-      const leaves = snap.docs.map(d => ({ id: d.id, ...d.data() } as LeaveRequest));
-      callback(leaves);
+      const leaves = snap.docs.map(d => {
+        const data = d.data();
+        return { 
+          id: d.id, 
+          ...data,
+          submittedAt: data.submittedAt instanceof Timestamp ? data.submittedAt.toMillis() : data.submittedAt,
+          handledAt: data.handledAt instanceof Timestamp ? data.handledAt.toMillis() : data.handledAt
+        } as LeaveRequest;
+      });
+      // Client-side sort to avoid composite index requirement
+      const sortedLeaves = [...leaves].sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+      callback(sortedLeaves);
     }, (e) => handleFirestoreError(e, OperationTypeLocal.LIST, 'leaveRequests'));
   },
 
@@ -96,7 +105,15 @@ export const leaveService = {
       orderBy('submittedAt', 'desc')
     );
     return onSnapshot(q, (snap) => {
-      const leaves = snap.docs.map(d => ({ id: d.id, ...d.data() } as LeaveRequest));
+      const leaves = snap.docs.map(d => {
+        const data = d.data();
+        return { 
+          id: d.id, 
+          ...data,
+          submittedAt: data.submittedAt instanceof Timestamp ? data.submittedAt.toMillis() : data.submittedAt,
+          handledAt: data.handledAt instanceof Timestamp ? data.handledAt.toMillis() : data.handledAt
+        } as LeaveRequest;
+      });
       callback(leaves);
     }, (e) => handleFirestoreError(e, OperationTypeLocal.LIST, 'leaveRequests'));
   },

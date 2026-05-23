@@ -47,7 +47,7 @@ service cloud.firestore {
 
     // --- Leave Request Validation ---
     function isValidLeaveRequest(data) {
-      return data.keys().hasAll(['employeeId', 'employeeName', 'startDate', 'endDate', 'type', 'status', 'reason', 'submittedAt']) &&
+      return data.keys().hasAll(['employeeId', 'employeeName', 'department', 'startDate', 'endDate', 'type', 'status', 'reason', 'submittedAt']) &&
              data.employeeId == request.auth.uid &&
              data.employeeName is string &&
              data.status == 'Pending' &&
@@ -60,7 +60,7 @@ service cloud.firestore {
       allow list: if isAdmin() || (isSignedIn() && resource.data.employeeId == request.auth.uid);
       allow get: if (isAdmin() || (isSignedIn() && resource.data.employeeId == request.auth.uid)) && isValidId(requestId);
       
-      allow create: if isSignedIn() && isValidLeaveRequest(incoming()) && isVerified() && isValidId(requestId);
+      allow create: if isSignedIn() && isValidLeaveRequest(incoming()) && isValidId(requestId);
       
       allow update: if (isSignedIn() && isValidId(requestId)) && (
         // Admin action: Change status

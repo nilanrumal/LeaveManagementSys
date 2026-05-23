@@ -214,9 +214,11 @@ export default function Portal({ user }: PortalProps) {
                       </td>
                       <td className="px-6 py-4">
                         <p className="text-sm text-slate-700">{format(new Date(leave.startDate), 'MMM d')} - {format(new Date(leave.endDate), 'MMM d')}</p>
-                        <p className="text-xs text-slate-400">Submitted {format(leave.submittedAt as any, 'HH:mm dd/MM')}</p>
+                        <p className="text-xs text-slate-400">
+                          {leave.submittedAt ? `Submitted ${format(leave.submittedAt, 'HH:mm dd/MM')}` : 'Submitting...'}
+                        </p>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-6 py-4 text-sm">
                         <StatusBadge status={leave.status} />
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -319,6 +321,7 @@ const StatusBadge = ({ status }: { status: string }) => {
 };
 
 const LeaveRequestModal = ({ user, onClose }: { user: UserProfile, onClose: () => void }) => {
+  const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
@@ -361,11 +364,13 @@ const LeaveRequestModal = ({ user, onClose }: { user: UserProfile, onClose: () =
         reason: formData.reason
       });
       setSubmitted(true);
+      // Auto-refresh handled by onSnapshot in Portal
       setTimeout(() => {
         onClose();
-      }, 2000);
-    } catch (err) {
-      console.error(err);
+      }, 3000);
+    } catch (err: any) {
+      console.error('Submission failed:', err);
+      setError('Failed to submit request. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -398,16 +403,24 @@ const LeaveRequestModal = ({ user, onClose }: { user: UserProfile, onClose: () =
         </div>
 
         {submitted ? (
-          <div className="p-20 text-center">
+          <div className="p-16 text-center">
             <motion.div 
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-6"
+              className="w-24 h-24 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-green-200"
             >
-              <Check size={40} />
+              <CheckCircle size={48} strokeWidth={2.5} />
             </motion.div>
-            <h3 className="text-2xl font-serif font-bold text-navy-900 mb-2 italic">Success!</h3>
-            <p className="text-slate-500 font-medium italic">Your leave form successfully submitted</p>
+            <h3 className="text-3xl font-serif font-bold text-navy-900 mb-3 italic">Request Confirmed</h3>
+            <p className="text-slate-500 max-w-xs mx-auto mb-8 leading-relaxed">
+              Your leave form has been successfully submitted to the department head for review.
+            </p>
+            <button 
+              onClick={onClose}
+              className="bg-navy-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-navy-800 transition-all shadow-lg active:scale-95"
+            >
+              Return to Dashboard
+            </button>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-8 space-y-6">
@@ -427,6 +440,7 @@ const LeaveRequestModal = ({ user, onClose }: { user: UserProfile, onClose: () =
                 <input 
                   type="date" 
                   required
+                  min={today}
                   className="input-field" 
                   value={formData.startDate}
                   onChange={(e) => setFormData({...formData, startDate: e.target.value})}
@@ -437,6 +451,7 @@ const LeaveRequestModal = ({ user, onClose }: { user: UserProfile, onClose: () =
                 <input 
                   type="date" 
                   required
+                  min={formData.startDate || today}
                   className="input-field"
                   value={formData.endDate}
                   onChange={(e) => setFormData({...formData, endDate: e.target.value})}
