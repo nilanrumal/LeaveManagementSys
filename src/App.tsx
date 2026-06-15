@@ -30,16 +30,11 @@ import { UserProfile, UserRole } from './types';
 import Portal from './components/Portal';
 
 // --- Types ---
-type Language = 'en' | 'fr' | 'es';
+type Language = 'en' | 'ta' | 'si';
 
 interface Translation {
   title: string;
   subtitle: string;
-  admissions: string;
-  academics: string;
-  research: string;
-  studentLife: string;
-  alumni: string;
   staffPortal: string;
   applyNow: string;
 }
@@ -48,35 +43,20 @@ const translations: Record<Language, Translation> = {
   en: {
     title: "Global Horizon University",
     subtitle: "Empowering Minds, Shaping the Future",
-    admissions: "Admissions",
-    academics: "Academics",
-    research: "Research",
-    studentLife: "Student Life",
-    alumni: "Alumni",
     staffPortal: "Staff Portal",
     applyNow: "Apply Now"
   },
-  fr: {
-    title: "Université Global Horizon",
-    subtitle: "Autonomiser les esprits, façonner l'avenir",
-    admissions: "Admissions",
-    academics: "Études",
-    research: "Recherche",
-    studentLife: "Vie Étudiante",
-    alumni: "Anciens Élèves",
-    staffPortal: "Portail du Personnel",
-    applyNow: "Postulez"
+  ta: {
+    title: "குளோபல் ஹொரைசன் பல்கலைக்கழகம்",
+    subtitle: "மனங்களை மேம்படுத்துதல், எதிர்காலத்தை வடிவமைத்தல்",
+    staffPortal: "பணியாளர் போர்டல்",
+    applyNow: "இப்போது விண்ணப்பிக்கவும்"
   },
-  es: {
-    title: "Universidad Global Horizon",
-    subtitle: "Empoderando mentes, forjando el futuro",
-    admissions: "Admisiones",
-    academics: "Académico",
-    research: "Investigación",
-    studentLife: "Vida Estudiantil",
-    alumni: "Alumni",
-    staffPortal: "Portal del Personal",
-    applyNow: "Inscríbete"
+  si: {
+    title: "ග්ලෝබල් හොරයිසන් විශ්වවිද්‍යාලය",
+    subtitle: "මනස සවිබල ගැන්වීම, අනාගතය හැඩගැස්වීම",
+    staffPortal: "සේවක ද්වාරය",
+    applyNow: "දැන් අයදුම් කරන්න"
   }
 };
 
@@ -88,6 +68,57 @@ const LanguageContext = createContext<{
 }>({ lang: 'en', setLang: () => {}, t: translations.en });
 
 // --- Components ---
+
+const CreativeTitle = ({ isScrolled }: { isScrolled: boolean }) => {
+  const words = ["Leave", "Management", "System"];
+  return (
+    <div className="flex items-center gap-2 select-none">
+      <div className="flex items-center gap-1 md:gap-1.5 lg:gap-2">
+        {words.map((word, wordIdx) => (
+          <motion.span
+            key={wordIdx}
+            className={`text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-[0.12em] ${
+              isScrolled ? 'text-navy-950 font-black' : 'text-white font-black'
+            }`}
+            animate={{
+              opacity: [0.75, 1, 0.75],
+              y: [0, -1, 0]
+            }}
+            transition={{
+              duration: 2.5,
+              delay: wordIdx * 0.3,
+              repeat: Infinity,
+              ease: "easeInOut"
+            }}
+          >
+            {word}
+          </motion.span>
+        ))}
+        
+        <motion.div
+          animate={{
+            scale: [1, 1.15, 1],
+            boxShadow: [
+              "0 0 4px rgba(245,158,11,0.2)",
+              "0 0 16px rgba(245,158,11,0.8)",
+              "0 0 4px rgba(245,158,11,0.2)"
+            ]
+          }}
+          transition={{
+            duration: 2,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+          className="relative flex items-center justify-center ml-1"
+        >
+          <span className="relative z-10 text-[8px] sm:text-[9px] font-mono font-black tracking-widest uppercase bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-navy-950 px-2 py-0.5 rounded-md border border-amber-300">
+            PRO
+          </span>
+        </motion.div>
+      </div>
+    </div>
+  );
+};
 
 const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
   const { lang, setLang, t } = useContext(LanguageContext);
@@ -110,23 +141,21 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
           <span className={`font-serif font-bold text-xl tracking-tight transition-colors ${isScrolled ? 'text-navy-900' : 'text-white'}`}>GLOBAL HORIZON</span>
         </div>
 
-        <div className="hidden lg:flex items-center gap-8">
-          {[t.admissions, t.academics, t.research, t.studentLife, t.alumni].map((item) => (
-            <a key={item} href="#" className={`text-sm font-medium hover:text-amber-500 transition-colors ${isScrolled ? 'text-slate-600' : 'text-white/90'}`}>{item}</a>
-          ))}
+        <div className="hidden lg:flex items-center">
+          <CreativeTitle isScrolled={isScrolled} />
         </div>
 
         <div className="flex items-center gap-4">
-          <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isScrolled ? 'border-slate-200 text-slate-600' : 'border-white/20 text-white/80'}`}>
-            <Globe2 size={14} />
+          <div className={`hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isScrolled ? 'border-slate-200 text-slate-800 bg-slate-50' : 'border-white/20 text-white bg-white/10'}`}>
+            <Globe2 size={14} className="text-amber-500 animate-spin-slow" />
             <select 
               value={lang} 
               onChange={(e) => setLang(e.target.value as Language)}
-              className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer uppercase"
+              className="bg-transparent text-xs font-bold focus:outline-none cursor-pointer pr-1"
             >
-              <option value="en">EN</option>
-              <option value="fr">FR</option>
-              <option value="es">ES</option>
+              <option value="en" className="text-slate-900 bg-white">English</option>
+              <option value="ta" className="text-slate-900 bg-white">Tamil (தமிழ்)</option>
+              <option value="si" className="text-slate-900 bg-white">Sinhala (සිංහල)</option>
             </select>
           </div>
 
@@ -145,15 +174,30 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
       
       <AnimatePresence>
         {mobileMenuOpen && (
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 bg-white z-[60] p-6 lg:hidden flex flex-col">
-            <div className="flex justify-between items-center mb-10">
-              <span className="font-serif font-bold text-navy-900 text-xl">GLOBAL HORIZON</span>
-              <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400"><X size={24} /></button>
+          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 bg-white z-[60] p-6 lg:hidden flex flex-col justify-between">
+            <div>
+              <div className="flex justify-between items-center mb-10">
+                <span className="font-serif font-bold text-navy-900 text-xl">GLOBAL HORIZON</span>
+                <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400"><X size={24} /></button>
+              </div>
+              <div className="py-6 border-b border-slate-100 mb-6">
+                <CreativeTitle isScrolled={true} />
+              </div>
+              <div className="flex flex-col gap-6">
+                <button 
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenPortal();
+                  }}
+                  className="w-full text-left font-serif text-2xl text-navy-900 pb-4 border-b border-slate-100 flex justify-between items-center group font-bold"
+                >
+                  <span>{t.staffPortal}</span>
+                  <ChevronRight size={20} className="text-amber-500" />
+                </button>
+              </div>
             </div>
-            <div className="flex flex-col gap-6">
-              {[t.admissions, t.academics, t.research, t.studentLife, t.alumni, t.staffPortal].map((item) => (
-                <a key={item} href="#" className="text-2xl font-serif text-navy-900 border-b border-slate-100 pb-4">{item}</a>
-              ))}
+            <div className="text-center text-[10px] uppercase font-mono tracking-wider text-slate-400">
+              © 2026 Global Horizon Education
             </div>
           </motion.div>
         )}

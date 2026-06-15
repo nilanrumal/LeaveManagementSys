@@ -48,6 +48,6 @@ export interface LeaveRequest {
 }
 
 export interface AppLanguage {
-  lang: 'en' | 'fr' | 'es';
+  lang: 'en' | 'ta' | 'si';
   t: any;
 }
