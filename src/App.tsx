@@ -70,51 +70,40 @@ const LanguageContext = createContext<{
 // --- Components ---
 
 const CreativeTitle = ({ isScrolled }: { isScrolled: boolean }) => {
-  const words = ["Leave", "Management", "System"];
   return (
-    <div className="flex items-center gap-2 select-none">
-      <div className="flex items-center gap-1 md:gap-1.5 lg:gap-2">
-        {words.map((word, wordIdx) => (
-          <motion.span
-            key={wordIdx}
-            className={`text-[10px] sm:text-xs md:text-sm font-black uppercase tracking-[0.12em] ${
-              isScrolled ? 'text-navy-950 font-black' : 'text-white font-black'
-            }`}
-            animate={{
-              opacity: [0.75, 1, 0.75],
-              y: [0, -1, 0]
-            }}
-            transition={{
-              duration: 2.5,
-              delay: wordIdx * 0.3,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          >
-            {word}
-          </motion.span>
-        ))}
-        
-        <motion.div
-          animate={{
-            scale: [1, 1.15, 1],
-            boxShadow: [
-              "0 0 4px rgba(245,158,11,0.2)",
-              "0 0 16px rgba(245,158,11,0.8)",
-              "0 0 4px rgba(245,158,11,0.2)"
-            ]
-          }}
-          transition={{
-            duration: 2,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-          className="relative flex items-center justify-center ml-1"
-        >
-          <span className="relative z-10 text-[8px] sm:text-[9px] font-mono font-black tracking-widest uppercase bg-gradient-to-r from-amber-500 via-amber-400 to-amber-600 text-navy-950 px-2 py-0.5 rounded-md border border-amber-300">
-            PRO
-          </span>
-        </motion.div>
+    <div className="relative p-[1.5px] rounded-full overflow-hidden flex items-center select-none shadow-sm">
+      {/* Rotating gradient line representing the animated border line around the background */}
+      <motion.div
+        className="absolute inset-0 bg-gradient-to-r from-orange-500 via-orange-100 to-orange-600"
+        style={{
+          width: '200%',
+          height: '200%',
+          left: '-50%',
+          top: '-50%',
+          originX: 0.5,
+          originY: 0.5
+        }}
+        animate={{
+          rotate: 360
+        }}
+        transition={{
+          duration: 4,
+          repeat: Infinity,
+          ease: "linear"
+        }}
+      />
+      {/* Inner professional status badge */}
+      <div className={`relative px-4 py-1.5 rounded-full flex items-center gap-2 ${
+        isScrolled ? 'bg-white' : 'bg-slate-900/95'
+      }`}>
+        <span className={`text-[11px] font-sans font-black uppercase tracking-wider ${
+          isScrolled ? 'text-slate-800' : 'text-white'
+        }`}>
+          Leave Management System
+        </span>
+        <span className="text-[8px] sm:text-[9px] font-mono font-black tracking-widest uppercase bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-0.5 rounded-md">
+          PRO
+        </span>
       </div>
     </div>
   );
@@ -347,11 +336,11 @@ export default function App() {
   }, []);
 
   if (loading) return (
-    <div className="h-screen w-screen flex flex-col items-center justify-center bg-navy-900 text-white gap-6">
-      <div className="w-12 h-12 border-4 border-white/5 border-t-amber-500 rounded-full animate-spin" />
+    <div className="h-screen w-screen flex flex-col items-center justify-center bg-orange-50/20 text-slate-850 gap-6">
+      <div className="w-10 h-10 border-4 border-slate-100 border-t-orange-500 rounded-full animate-spin" />
       <div className="flex flex-col items-center animate-pulse">
-        <span className="font-sans font-black text-lg tracking-wider text-white mb-2">JAFFNA UNIVERSITY</span>
-        <span className="text-white/40 uppercase tracking-[0.4em] text-[9px] font-bold">Secure Gateway</span>
+        <span className="font-sans font-black text-sm tracking-wider text-slate-800 mb-1.5">JAFFNA UNIVERSITY</span>
+        <span className="text-slate-400 uppercase tracking-[0.3em] text-[9px] font-bold">Secure Gateway</span>
       </div>
     </div>
   );
@@ -362,34 +351,29 @@ export default function App() {
 
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
-      <main className="min-h-screen bg-white font-sans selection:bg-amber-100 selection:text-navy-900">
+      <main className="min-h-screen bg-white font-sans selection:bg-orange-100 selection:text-slate-900">
         <Navbar onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
         <Hero onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
         <AcademicFeatures />
 
-        <section className="py-20 bg-navy-900 text-white relative overflow-hidden">
-           <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-                <defs><pattern id="dots" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.5" fill="currentColor"/></pattern></defs>
-                <rect width="100%" height="100%" fill="url(#dots)" />
-              </svg>
-           </div>
+        <section className="py-20 bg-white text-slate-800 relative border-t border-b border-orange-100 overflow-hidden">
+           <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-white opacity-40 pointer-events-none" />
            <div className="max-w-4xl mx-auto text-center px-4 relative z-10">
-              <span className="text-amber-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-4 block">Internal Network</span>
-              <h2 className="text-3xl md:text-4xl font-sans font-black tracking-tight mb-6 uppercase">Professional Staff Administration</h2>
-              <p className="text-slate-300 text-sm md:text-base mb-10 opacity-90 max-w-2xl mx-auto leading-relaxed">
+              <span className="text-orange-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-4 block">Internal Network</span>
+              <h2 className="text-2xl md:text-3xl font-sans font-black tracking-tight mb-5 uppercase text-slate-800">Professional Staff Administration</h2>
+              <p className="text-slate-500 text-xs md:text-sm mb-8 max-w-xl mx-auto leading-relaxed">
                 Unlock specialized leave management, departmental data, and administrative coordination tools designed for efficiency and transparency.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                  <button 
                   onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
-                  className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-lg transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-md hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   Enter Portal <ChevronRight size={16} />
                 </button>
                 <button 
                   onClick={() => { setAuthMode('register'); setIsAuthModalOpen(true); }}
-                  className="bg-navy-800 hover:bg-navy-700 text-white border border-white/10 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all cursor-pointer"
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all cursor-pointer border border-slate-200"
                 >
                   New Account
                 </button>
@@ -400,8 +384,8 @@ export default function App() {
         <footer className="bg-slate-50 py-20 border-t border-slate-100">
            <div className="max-w-7xl mx-auto px-4 text-center">
              <div className="flex items-center justify-center gap-3 mb-8">
-                <GraduationCap size={32} className="text-amber-500" />
-                <span className="font-sans font-black text-2xl tracking-wider text-navy-900">JAFFNA UNIVERSITY</span>
+                <GraduationCap size={32} className="text-orange-500 animate-pulse" />
+                <span className="font-sans font-black text-2xl tracking-wider text-slate-800">JAFFNA UNIVERSITY</span>
               </div>
               <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enrollment Portal Setup:</span>
@@ -412,7 +396,7 @@ export default function App() {
                       setAuthMode('register');
                       setIsAuthModalOpen(true);
                     }}
-                    className="bg-navy-900 text-white hover:bg-navy-850 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <User size={14} /> Create Staff Profile
                   </button>
@@ -422,7 +406,7 @@ export default function App() {
                       setAuthMode('register');
                       setIsAuthModalOpen(true);
                     }}
-                    className="bg-indigo-600 text-white hover:bg-indigo-700 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <User size={14} /> Create HOD Profile
                   </button>
@@ -432,7 +416,7 @@ export default function App() {
                       setAuthMode('register');
                       setIsAuthModalOpen(true);
                     }}
-                    className="bg-emerald-600 text-white hover:bg-emerald-700 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <User size={14} /> Create CEO Profile
                   </button>
@@ -442,7 +426,7 @@ export default function App() {
                       setAuthMode('register');
                       setIsAuthModalOpen(true);
                     }}
-                    className="bg-amber-500 text-navy-950 hover:bg-amber-600 hover:text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-md hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
                   >
                     <ShieldCheck size={14} /> Create Admin Profile
                   </button>
@@ -453,9 +437,9 @@ export default function App() {
                © 2026 Jaffna University Sri Lanka. Secure Staff Directory Portal. All staff actions are audited for security compliance.
              </p>
              <div className="flex justify-center gap-8 text-xs font-bold text-slate-300 uppercase underline-offset-4 tracking-widest">
-                <a href="#" className="hover:text-navy-900">Privacy</a>
-                <a href="#" className="hover:text-navy-900">Security</a>
-                <a href="#" className="hover:text-navy-900">Standards</a>
+                <a href="#" className="hover:text-orange-500">Privacy</a>
+                <a href="#" className="hover:text-orange-500">Security</a>
+                <a href="#" className="hover:text-orange-500">Standards</a>
              </div>
            </div>
         </footer>
@@ -522,19 +506,19 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-navy-950/80 backdrop-blur-xl" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
       <motion.div 
         initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-md rounded-[2.5rem] shadow-[0_0_80px_rgba(0,0,0,0.5)] relative z-10 overflow-hidden"
+        className="bg-white w-full max-w-md rounded-3xl shadow-xl border border-orange-100 relative z-10 overflow-hidden"
       >
-        <div className="bg-navy-900 p-10 text-white relative">
-          <button onClick={onClose} className="absolute top-8 right-8 text-white/40 hover:text-white transition-colors"><X size={24} /></button>
-          <div className="w-14 h-14 bg-amber-500 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-amber-500/20"><User size={28} className="text-navy-900" /></div>
-          <h2 className="text-3xl font-serif font-bold italic mb-2 tracking-tight">{mode === 'login' ? 'Staff Authentication' : 'University Enrollment'}</h2>
-          <p className="text-white/40 text-sm font-light">Access the secure leave management ecosystem.</p>
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 text-white relative">
+          <button onClick={onClose} className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors cursor-pointer"><X size={20} /></button>
+          <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4"><User size={24} className="text-white" /></div>
+          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">{mode === 'login' ? 'Staff Authentication' : 'University Enrollment'}</h2>
+          <p className="text-white/80 text-xs font-light">Access the secure leave management ecosystem.</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-10 space-y-5">
+        <form onSubmit={handleSubmit} className="p-8 space-y-4">
           {error && (
             <motion.div initial={{ x: -10 }} animate={{ x: 0 }} className="p-4 bg-red-50 text-red-700 rounded-2xl text-xs flex items-center gap-3 font-bold border border-red-100">
                <div className="w-6 h-6 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">!</div>
@@ -545,12 +529,12 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           {mode === 'register' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Full Legal Name</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Full Legal Name</label>
                 <input required value={name} onChange={e => setName(e.target.value)} type="text" className="input-field" placeholder="Prof. Alexander Sterling" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Access Tier</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Access Tier</label>
                     <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="input-field bg-white">
                       <option value="employee">Staff Member</option>
                       <option value="hod">HOD (Head of Department)</option>
@@ -559,7 +543,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
                     </select>
                  </div>
                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Faculty</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Faculty</label>
                     <select value={dept} onChange={e => setDept(e.target.value)} className="input-field bg-white">
                       <option>Humanities</option>
                       <option>Engineering</option>
@@ -572,23 +556,23 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           )}
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Internal Email</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Internal Email</label>
             <input required value={email} onChange={e => setEmail(e.target.value)} type="email" className="input-field" placeholder="staff.id@university.edu" />
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Security Credentials</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Security Credentials</label>
             <input required value={password} onChange={e => setPassword(e.target.value)} type="password" className="input-field" placeholder="••••••••" />
           </div>
 
-          <button disabled={loading} className="w-full primary-button py-5 text-lg flex items-center justify-center gap-3">
-            {loading ? <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : mode === 'login' ? 'Secure Login' : 'Create Profile'}
+          <button disabled={loading} className="w-full primary-button py-3 text-sm flex items-center justify-center gap-2 mt-2">
+            {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : mode === 'login' ? 'Secure Login' : 'Create Profile'}
           </button>
 
-          <div className="text-center pt-6">
-             <p className="text-sm text-slate-400">
+          <div className="text-center pt-2">
+             <p className="text-xs text-slate-400">
                {mode === 'login' ? "Don't have credentials?" : "Already verified?"} {' '}
-               <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-navy-900 font-bold hover:underline">
+               <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-orange-600 font-bold hover:underline">
                  {mode === 'login' ? 'Request Access' : 'Return to Login'}
                </button>
              </p>

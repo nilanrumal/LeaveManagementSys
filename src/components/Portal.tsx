@@ -246,20 +246,20 @@ export default function Portal({ user }: PortalProps) {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50/50 overflow-hidden font-sans">
       {/* Sidebar Navigation */}
-      <aside className="w-68 bg-navy-900 text-white flex flex-col p-6 flex-shrink-0">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="bg-white/10 p-2 rounded-xl text-amber-400">
-            <LayoutDashboard size={24} />
+      <aside className="w-64 bg-white border-r border-slate-200 flex flex-col p-5 flex-shrink-0">
+        <div className="flex items-center gap-3 mb-8">
+          <div className="bg-orange-50 p-2 rounded-xl text-orange-500">
+            <LayoutDashboard size={22} />
           </div>
           <div>
-            <span className="font-serif font-bold text-lg tracking-tight block">Staff Console</span>
-            <span className="text-[10px] text-amber-400 font-mono tracking-wider font-bold">GLOBAL HORIZON</span>
+            <span className="font-sans font-black text-sm tracking-tight block text-slate-800">Staff Console</span>
+            <span className="text-[9px] text-orange-500 font-sans tracking-widest font-black uppercase">JAFFNA UNIVERSITY</span>
           </div>
         </div>
 
-        <nav className="flex-1 space-y-2">
+        <nav className="flex-1 space-y-1.5">
           <SidebarLink 
             icon={LayoutDashboard} 
             label="Dashboard" 
@@ -328,54 +328,54 @@ export default function Portal({ user }: PortalProps) {
         </nav>
 
         {/* User Card */}
-        <div className="pt-6 border-t border-white/10 mt-auto">
-          <div className="bg-white/5 rounded-2xl p-4 mb-4">
+        <div className="pt-5 border-t border-slate-100 mt-auto">
+          <div className="bg-orange-50/50 rounded-2xl p-4 mb-4 border border-orange-100/30">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center font-bold text-navy-900 uppercase">
+              <div className="w-9 h-9 rounded-full bg-orange-500 flex items-center justify-center font-bold text-white uppercase text-sm">
                 {user.name.charAt(0)}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-bold truncate text-white">{user.name}</p>
-                <p className="text-[10px] font-mono font-bold text-amber-400 capitalize">{user.employeeNo || "No number"}</p>
+                <p className="text-xs font-extrabold truncate text-slate-800">{user.name}</p>
+                <p className="text-[9px] font-mono font-black text-orange-600 uppercase">{user.employeeNo || "No number"}</p>
               </div>
             </div>
             
-            <div className="space-y-1.5 text-xs text-slate-300">
-               <div className="flex justify-between">
-                 <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold">Access Tier:</span>
-                 <span className="capitalize font-semibold text-amber-400">{user.role}</span>
+            <div className="space-y-1 text-[11px] text-slate-600">
+               <div className="flex justify-between items-center">
+                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">Access Tier:</span>
+                 <span className="capitalize font-bold text-orange-600">{user.role}</span>
                </div>
-               <div className="flex justify-between">
-                 <span className="text-slate-400 uppercase tracking-widest text-[9px] font-bold">Faculty/Dept:</span>
-                 <span className="truncate max-w-[100px] font-semibold">{user.department}</span>
+               <div className="flex justify-between items-center">
+                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">Faculty/Dept:</span>
+                 <span className="truncate max-w-[100px] font-bold text-slate-800">{user.department}</span>
                </div>
             </div>
           </div>
 
           <button 
             onClick={handleSignOut}
-            className="flex items-center gap-3 w-full p-2.5 text-white/60 hover:text-white hover:bg-white/5 rounded-xl transition-all"
+            className="flex items-center gap-3 w-full p-2.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
           >
-            <LogOut size={18} />
-            <span className="text-sm font-bold">Log Out</span>
+            <LogOut size={16} />
+            <span className="text-xs font-bold">Log Out</span>
           </button>
         </div>
       </aside>
 
       {/* Main Panel Content */}
-      <main className="flex-1 overflow-y-auto p-8 relative">
+      <main className="flex-1 overflow-y-auto p-8 relative bg-slate-50/50">
         
         {/* Header Block */}
-        <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm">
           <div>
-            <h1 className="text-2xl font-serif font-bold text-navy-900">
+            <h1 className="text-xl font-sans font-black tracking-tight text-slate-800">
               {activeTab === 'admin' && 'University Directory Administration'}
               {activeTab === 'approvals' && `${user.role === 'hod' ? 'Departmental' : 'Executive'} Leave Approvals`}
               {activeTab === 'history' && 'Leave History Ledger'}
               {activeTab === 'reports' && 'Academic Leave Analytics & Reports'}
               {activeTab === 'dashboard' && `Academic Portal: Welcome, ${user.name}`}
             </h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-xs text-slate-400 mt-1">
               {activeTab === 'admin' && 'Organize faculty access tiers, leave allowances, and campus roles.'}
               {activeTab === 'approvals' && `Evaluate requests and check acting-person vacancy overlapping dates.`}
               {activeTab === 'history' && 'Audit log of all registered time off transactions.'}
@@ -387,9 +387,9 @@ export default function Portal({ user }: PortalProps) {
           {user.role !== 'admin' && (
             <button 
               onClick={() => setIsApplyModalOpen(true)}
-              className="bg-navy-900 hover:bg-navy-800 text-white px-5 py-3 rounded-2xl font-bold flex items-center gap-2 shadow-lg transition-transform active:scale-95 text-sm"
+              className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
             >
-              <Plus size={18} /> Apply for Leave
+              <Plus size={16} /> Apply for Leave
             </button>
           )}
         </header>
@@ -409,15 +409,15 @@ export default function Portal({ user }: PortalProps) {
             )}
 
             {/* Profile detail display - locked and non-editable */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-8 shadow-sm relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-bl-full pointer-events-none" />
+            <div className="bg-white rounded-2xl border border-slate-200/60 p-8 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/5 rounded-bl-full pointer-events-none" />
               
               <div className="flex items-center gap-3 mb-6">
-                 <div className="w-10 h-10 bg-navy-900 text-white rounded-xl flex items-center justify-center">
+                 <div className="w-10 h-10 bg-orange-500 text-white rounded-xl flex items-center justify-center">
                     <UserIcon size={20} />
                  </div>
                  <div>
-                    <h2 className="text-xl font-serif font-bold text-navy-900">Official Staff Profile</h2>
+                    <h2 className="text-sm font-sans font-black text-slate-800 uppercase tracking-tight">Official Staff Profile</h2>
                     <p className="text-xs text-slate-500">Verified institutional data. Modification strictly limited to system administrators.</p>
                  </div>
               </div>
@@ -446,13 +446,13 @@ export default function Portal({ user }: PortalProps) {
 
             {/* Recent list summary */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-               <h3 className="font-bold text-navy-900 mb-4 font-serif italic text-lg">My Recent Leaves</h3>
+               <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">My Recent Leaves</h3>
                {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
                   <div className="divide-y divide-slate-100">
                      {leaves.filter(l => l.employeeId === user.uid).slice(0, 3).map(rq => (
                         <div key={rq.id} className="py-4 flex justify-between items-center text-sm">
                            <div>
-                              <p className="font-semibold text-navy-950">{rq.type} Leave</p>
+                              <p className="font-bold text-slate-800">{rq.type} Leave</p>
                               <p className="text-xs text-slate-500">{format(new Date(rq.startDate), 'MMMM d, yyyy')} - {format(new Date(rq.endDate), 'MMMM d, yyyy')}</p>
                            </div>
                            <div className="flex items-center gap-3">
@@ -475,7 +475,7 @@ export default function Portal({ user }: PortalProps) {
         {activeTab === 'history' && (
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
-              <h3 className="font-bold text-navy-900 font-serif italic text-lg">
+              <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
                 {user.role === 'admin' ? 'University Leave Records Ledger' : 'My Personal Leave Records'}
               </h3>
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
@@ -484,13 +484,13 @@ export default function Portal({ user }: PortalProps) {
                   <input 
                     type="text" 
                     placeholder="Search by name, reason or ID..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-navy-900/10"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/10"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   />
                 </div>
                 <select 
-                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-navy-900"
+                  className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 text-sm focus:outline-none font-bold text-slate-800 cursor-pointer"
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
@@ -521,7 +521,7 @@ export default function Portal({ user }: PortalProps) {
                       <tr key={leave.id} className="hover:bg-slate-50/50 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-9 h-9 rounded-xl bg-navy-100 text-navy-900 flex items-center justify-center font-bold text-sm">
+                            <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-sm">
                                {leave.employeeName?.charAt(0)}
                             </div>
                             <div>
@@ -547,7 +547,7 @@ export default function Portal({ user }: PortalProps) {
                         <td className="px-6 py-4">
                           {leave.actingEmployeeNo ? (
                             <div className="space-y-1">
-                               <p className="text-sm font-bold text-navy-900">{actInfo.name}</p>
+                               <p className="text-sm font-bold text-slate-800">{actInfo.name}</p>
                                <p className="text-xs text-slate-500 font-mono">ID: {actInfo.empNo}</p>
                                {actInfo.hasConflict && (
                                  <div className="flex items-center gap-1 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-semibold border border-red-100 max-w-[180px]">
@@ -600,13 +600,13 @@ export default function Portal({ user }: PortalProps) {
              {/* Report Action Panels */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                   <h3 className="font-bold text-navy-900 font-serif italic text-lg">Report Configurations</h3>
+                   <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">Report Configurations</h3>
                    <p className="text-xs text-slate-500 mt-1">Specify parameters to isolate departments, employee nodes, and timeframes.</p>
                 </div>
                 <div className="flex gap-3">
                    <button 
                      onClick={() => window.print()}
-                     className="bg-slate-100 hover:bg-slate-200 text-navy-900 border border-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 text-xs transition"
+                     className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 text-xs transition cursor-pointer"
                    >
                      <Printer size={15} /> Print/PDF Report
                    </button>
@@ -756,18 +756,18 @@ export default function Portal({ user }: PortalProps) {
                   <div className="space-y-8 animate-fade-in">
                      {/* Creative Dashboard KPIs */}
                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                        <div className="bg-gradient-to-br from-navy-900 to-slate-900 text-white p-6 rounded-3xl relative overflow-hidden shadow-sm">
+                        <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white p-6 rounded-2xl relative overflow-hidden shadow-sm">
                            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-5">
                               <Calendar size={180} />
                            </div>
-                           <p className="text-[10px] font-mono tracking-wider text-amber-400 font-bold uppercase">Total Approved Days</p>
-                           <p className="text-4xl font-serif font-bold mt-2">{approvedDays}</p>
+                           <p className="text-[10px] font-sans tracking-widest text-orange-100 font-bold uppercase">Total Approved Days</p>
+                           <p className="text-4xl font-sans font-black mt-2">{approvedDays}</p>
                            <p className="text-xs text-white/60 mt-2 font-medium">Approved calendar leave days</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
                            <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Approval Rate</p>
-                           <p className="text-4xl font-serif font-bold mt-2 text-navy-950">{approvalRate}%</p>
+                           <p className="text-4xl font-sans font-black mt-2 text-slate-800">{approvalRate}%</p>
                            <div className="mt-2.5 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                               <div className="bg-emerald-500 h-full" style={{ width: `${approvalRate}%` }} />
                            </div>
@@ -776,13 +776,13 @@ export default function Portal({ user }: PortalProps) {
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
                            <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">In Evaluation Pipeline</p>
-                           <p className="text-4xl font-serif font-bold mt-2 text-amber-500">{pendingRequests}</p>
+                           <p className="text-4xl font-sans font-black mt-2 text-orange-500">{pendingRequests}</p>
                            <p className="text-xs text-slate-500 mt-2 font-medium">Pending approvals</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
                            <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Total Transactions</p>
-                           <p className="text-4xl font-serif font-bold mt-2 text-navy-950">{totalRequests}</p>
+                           <p className="text-4xl font-sans font-black mt-2 text-slate-800">{totalRequests}</p>
                            <p className="text-xs text-slate-500 mt-2 font-medium">Requests in selected timeframe</p>
                         </div>
                      </div>
@@ -790,7 +790,7 @@ export default function Portal({ user }: PortalProps) {
                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         {/* Creative Leave Distribution Bar Chart */}
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm lg:col-span-5">
-                           <h4 className="font-serif italic font-bold text-navy-900 mb-6 text-base">Distribution by Leave Category</h4>
+                           <h4 className="font-sans font-black text-xs uppercase tracking-wider text-slate-850 mb-6">Distribution by Leave Category</h4>
                            <div className="space-y-4">
                               {Object.entries(leaveTypeCounts).map(([type, val]) => {
                                  const pct = totalRequests > 0 ? Math.round((val / totalRequests) * 100) : 0;
@@ -823,9 +823,9 @@ export default function Portal({ user }: PortalProps) {
                         </div>
 
                         {/* Leave Trend & Summary Insights */}
-                        <div className="bg-navy-950 text-white/90 p-6 rounded-3xl shadow-sm lg:col-span-7 flex flex-col justify-between">
+                        <div className="bg-slate-900 text-white/95 p-6 rounded-2xl shadow-sm lg:col-span-7 flex flex-col justify-between">
                            <div>
-                              <h4 className="font-serif italic font-bold text-amber-400 mb-4 text-base">Institutional Insights Summary</h4>
+                              <h4 className="font-sans font-black text-xs uppercase tracking-wider text-orange-400 mb-4">Institutional Insights Summary</h4>
                               <div className="space-y-4 text-xs font-sans">
                                  <p className="leading-relaxed">
                                     This visual report consolidates active leave datasets within your faculty department. Academic personnel resource availability is tracked dynamically against ongoing academic and administrative schedules.
@@ -922,7 +922,7 @@ export default function Portal({ user }: PortalProps) {
                                     <tr>
                                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400">
                                           <div className="flex flex-col items-center gap-2">
-                                             <FolderMinus size={48} className="opacity-10 text-navy-900" />
+                                             <FolderMinus size={48} className="opacity-10 text-orange-500" />
                                              <p className="font-bold text-sm">No transaction records in this interval.</p>
                                              <p className="text-xs">Loosen filters to load historical data logs.</p>
                                           </div>
@@ -941,10 +941,10 @@ export default function Portal({ user }: PortalProps) {
 
         {/* -------------------- TAB: APPROVALS (HOD & CEO) -------------------- */}
         {activeTab === 'approvals' && (user.role === 'hod' || user.role === 'ceo') && (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div>
-                 <h3 className="font-bold text-navy-900 font-serif italic text-lg">Leave Requests Awaiting Your Evaluation</h3>
+                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">Leave Requests Awaiting Your Evaluation</h3>
                  <p className="text-xs text-slate-500 mt-1">
                    {user.role === 'hod' ? 'Standard Employees requests. Showing acting-person real-time calendars.' : 'HOD requests. Executive final review.'}
                  </p>
@@ -1055,10 +1055,10 @@ export default function Portal({ user }: PortalProps) {
 
         {/* -------------------- TAB: ADMIN (STAFF DIRECTORY) -------------------- */}
         {activeTab === 'admin' && user.role === 'admin' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div>
-                <h3 className="font-bold text-navy-900 font-serif italic text-lg">University Staff Directory Directory</h3>
+                <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">University Staff Directory</h3>
                 <p className="text-xs text-slate-500">Edit access tiers, department faculty, or delete profiles from the central directory database.</p>
               </div>
               <div className="w-full md:w-64 relative">
@@ -1091,11 +1091,11 @@ export default function Portal({ user }: PortalProps) {
                       <tr key={usr.uid} className="hover:bg-slate-50/50 transition-colors">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-navy-900 text-amber-400 flex items-center justify-center font-bold text-xs uppercase">
+                            <div className="w-8 h-8 rounded-full bg-orange-50 text-orange-600 flex items-center justify-center font-bold text-xs uppercase">
                               {usr.name.charAt(0)}
                             </div>
                             <div>
-                              <p className="text-sm font-bold text-navy-900">{usr.name}</p>
+                              <p className="text-sm font-bold text-slate-800">{usr.name}</p>
                               <p className="text-xs text-slate-500">{usr.email}</p>
                             </div>
                           </div>
@@ -1390,24 +1390,24 @@ export default function Portal({ user }: PortalProps) {
 const SidebarLink = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
   <button 
     onClick={onClick}
-    className={`flex items-center gap-3 w-full p-3 rounded-xl transition-all font-bold ${
-      active ? 'bg-amber-500 text-navy-900 shadow-md scale-[1.02]' : 'text-white/60 hover:bg-white/5 hover:text-white'
+    className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-all font-sans font-bold text-xs tracking-wide cursor-pointer ${
+      active ? 'bg-orange-500 text-white shadow-sm scale-[1.02]' : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/50'
     }`}
   >
-    <Icon size={18} />
-    <span className="text-sm">{label}</span>
+    <Icon size={16} />
+    <span className="text-[13px]">{label}</span>
   </button>
 );
 
 const StatCard = ({ label, value, icon: Icon, color, suffix }: { label: string, value: number, icon: any, color: 'blue' | 'amber' | 'green' | 'slate', suffix: string }) => {
   const colors = {
-    blue: 'text-blue-600 bg-blue-50 border-blue-100',
-    amber: 'text-amber-600 bg-amber-50 border-amber-100',
+    blue: 'text-orange-600 bg-orange-50 border-orange-100',
+    amber: 'text-orange-600 bg-orange-50 border-orange-105',
     green: 'text-green-600 bg-green-50 border-green-100',
     slate: 'text-slate-600 bg-slate-50 border-slate-100',
   };
   return (
-    <div className={`p-6 rounded-[2rem] border bg-white shadow-sm flex flex-col justify-between h-32`}>
+    <div className={`p-6 rounded-2xl border border-slate-200/60 bg-white shadow-sm flex flex-col justify-between h-32`}>
       <div className="flex justify-between items-start">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
         <div className={`p-2 rounded-lg ${colors[color]}`}>
@@ -1415,7 +1415,7 @@ const StatCard = ({ label, value, icon: Icon, color, suffix }: { label: string, 
         </div>
       </div>
       <div>
-         <span className="text-2xl font-serif font-bold text-navy-900">{value}</span>
+         <span className="text-2xl font-sans font-black text-slate-800">{value}</span>
          <span className="text-xs text-slate-400 ml-1 font-semibold">{suffix}</span>
       </div>
     </div>
@@ -1578,23 +1578,23 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm"
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm"
       />
       <motion.div 
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="bg-white w-full max-w-xl rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden"
+        className="bg-white w-full max-w-xl rounded-2xl shadow-xl relative z-10 border border-orange-100 overflow-hidden"
       >
-        <div className="bg-navy-900 p-8 text-white relative">
-          <button onClick={onClose} className="absolute top-6 right-6 text-white/40 hover:text-white">
-            <X size={24} />
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 text-white relative">
+          <button onClick={onClose} className="absolute top-6 right-6 text-white/70 hover:text-white cursor-pointer">
+            <X size={20} />
           </button>
-          <div className="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center mb-4">
-            <Plus size={24} className="text-navy-900" />
+          <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4">
+            <Plus size={24} className="text-white" />
           </div>
-          <h2 className="text-2xl font-serif font-bold italic">New Leave Request</h2>
-          <p className="text-white/50 text-sm">Fill in dates and designate acting personnel on campus.</p>
+          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">New Leave Request</h2>
+          <p className="text-white/80 text-xs">Fill in dates and designate acting personnel on campus.</p>
         </div>
 
         {submitted ? (
@@ -1602,12 +1602,12 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             <motion.div 
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="w-20 h-20 bg-green-500 text-white rounded-full flex items-center justify-center mx-auto mb-8 shadow-lg shadow-green-200"
+              className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-emerald-500/15"
             >
-              <Check size={40} strokeWidth={3} />
+              <Check size={28} strokeWidth={3} />
             </motion.div>
-            <h3 className="text-2xl font-serif font-bold text-navy-900 mb-3 italic">Request Logged</h3>
-            <p className="text-slate-500 max-w-xs mx-auto text-sm leading-relaxed mb-6">
+            <h3 className="text-lg font-sans font-black uppercase text-slate-800 mb-2">Request Logged</h3>
+            <p className="text-slate-400 max-w-xs mx-auto text-xs leading-relaxed mb-6">
               Your leave request has been submitted to authorized leaders for calendar checks.
             </p>
           </div>
@@ -1652,8 +1652,8 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
                     key={type}
                     type="button"
                     onClick={() => setFormData({...formData, type: type as LeaveType})}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
-                      formData.type === type ? 'bg-navy-900 text-white border-navy-900' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-navy-900'
+                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      formData.type === type ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-orange-500'
                     }`}
                   >
                     {type}

@@ -47,10 +47,10 @@
   }
   
   .input-field {
-    @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-navy-900/10 transition-all font-medium;
+    @apply w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all font-medium text-slate-800;
   }
 
   .primary-button {
-    @apply bg-navy-900 hover:bg-navy-800 text-white font-bold py-4 rounded-xl shadow-lg transition-all active:scale-[0.98];
+    @apply bg-orange-500 hover:bg-orange-600 text-white font-bold py-3.5 rounded-xl shadow-md hover:shadow-orange-500/20 transition-all active:scale-[0.98];
   }
 }
