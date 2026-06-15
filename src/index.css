@@ -1,32 +1,32 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy-50: #f0f7ff;
-  --color-navy-100: #e0effe;
-  --color-navy-200: #bae0fd;
-  --color-navy-300: #7cc8fb;
-  --color-navy-400: #38abf8;
-  --color-navy-500: #0e91e9;
-  --color-navy-600: #0274c7;
-  --color-navy-700: #035ca1;
-  --color-navy-800: #074e85;
-  --color-navy-900: #002147;
-  --color-navy-950: #061e38;
+  --color-navy-50: #f8fafc;
+  --color-navy-100: #f1f5f9;
+  --color-navy-200: #e2e8f0;
+  --color-navy-300: #cbd5e1;
+  --color-navy-400: #94a3b8;
+  --color-navy-500: #64748b;
+  --color-navy-600: #475569;
+  --color-navy-700: #334155;
+  --color-navy-800: #1e293b;
+  --color-navy-900: #0f172a;
+  --color-navy-950: #020617;
 
-  --color-amber-50: #fffbeb;
-  --color-amber-100: #fef3c7;
-  --color-amber-200: #fde68a;
-  --color-amber-300: #fcd34d;
-  --color-amber-400: #fbbf24;
-  --color-amber-500: #f59e0b;
-  --color-amber-600: #d97706;
-  --color-amber-700: #b45309;
-  --color-amber-800: #92400e;
-  --color-amber-900: #78350f;
-  --color-amber-950: #451a03;
+  --color-amber-50: #fff7ed;
+  --color-amber-100: #ffedd5;
+  --color-amber-200: #fed7aa;
+  --color-amber-300: #fdba74;
+  --color-amber-400: #fb923c;
+  --color-amber-500: #f97316;
+  --color-amber-600: #ea580c;
+  --color-amber-700: #c2410c;
+  --color-amber-800: #9a3412;
+  --color-amber-900: #7c2d12;
+  --color-amber-950: #431407;
 
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Playfair Display", "Georgia", serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 @layer base {

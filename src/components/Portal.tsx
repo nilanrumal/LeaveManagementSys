@@ -440,7 +440,7 @@ export default function Portal({ user }: PortalProps) {
                    <Lock size={14} className="text-slate-400" />
                    <span>Cannot change details. Please contact HR or Administration to modify this file.</span>
                 </div>
-                <span>Secured via Global Horizon Security Matrix</span>
+                <span>Secured via Jaffna University Network Security</span>
               </div>
             </div>
 
