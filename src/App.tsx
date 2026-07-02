@@ -24,6 +24,7 @@ import {
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
 } from 'firebase/auth';
 import { userService } from './services/db';
 import { UserProfile, UserRole } from './types';
@@ -268,7 +269,9 @@ export default function App() {
       if (u) {
         setLoading(true);
         unsubscribeProfile = userService.listenUserProfile(u.uid, async (profile) => {
-          const isAsanka = u.email?.trim().toLowerCase() === 'asanka@gmail.com';
+          const normEmail = u.email?.trim().toLowerCase();
+          const isAsanka = normEmail === 'asanka@gmail.com' || normEmail === 'nilanrumal@gmail.com';
+          const defaultAdminName = normEmail === 'nilanrumal@gmail.com' ? 'Nilan (Admin)' : 'Asanka (Admin)';
           if (!profile) {
             if (isRegistering) {
               return;
@@ -278,7 +281,7 @@ export default function App() {
               const newProfile: UserProfile = {
                 uid: u.uid,
                 email: u.email || '',
-                name: isAsanka ? 'Asanka (Admin)' : (u.displayName || u.email?.split('@')[0] || 'Faculty Member'),
+                name: isAsanka ? defaultAdminName : (u.displayName || u.email?.split('@')[0] || 'Faculty Member'),
                 role: isAsanka ? 'admin' : 'employee',
                 department: isAsanka ? 'Administration' : 'Academic',
                 totalLeaveDays: isAsanka ? 30 : 25,
@@ -409,17 +412,38 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
   const [dept, setDept] = useState('Academic');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
 
   useEffect(() => {
     setRole(initialRole);
   }, [initialRole]);
+
+  const handlePasswordReset = async () => {
+    if (!email.trim()) {
+      setError('Please enter your email address in the field below first.');
+      return;
+    }
+    setResetLoading(true);
+    setError('');
+    setResetSuccess(false);
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSuccess(true);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send password reset email. Please verify the email is valid.');
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     const normalizedEmail = email.trim().toLowerCase();
-    const isAsanka = normalizedEmail === 'asanka@gmail.com';
+    const isAsanka = normalizedEmail === 'asanka@gmail.com' || normalizedEmail === 'nilanrumal@gmail.com';
+    const defaultAdminName = normalizedEmail === 'nilanrumal@gmail.com' ? 'Nilan (Admin)' : 'Asanka (Admin)';
     try {
       if (mode === 'login') {
         try {
@@ -439,7 +463,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
               await userService.createProfile({
                 uid: cred.user.uid,
                 email: email.trim(),
-                name: 'Asanka (Admin)',
+                name: defaultAdminName,
                 role: 'admin',
                 department: 'Administration',
                 totalLeaveDays: 30,
@@ -466,7 +490,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
         await userService.createProfile({
           uid: cred.user.uid,
           email,
-          name: isAsanka ? 'Asanka (Admin)' : name,
+          name: isAsanka ? defaultAdminName : name,
           role: isAsanka ? 'admin' : role,
           department: isAsanka ? 'Administration' : dept,
           totalLeaveDays: (isAsanka || role === 'admin') ? 30 : 25,
@@ -505,6 +529,18 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
                {error}
             </motion.div>
           )}
+
+          {resetSuccess && (
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="p-4 bg-green-50 text-green-800 rounded-2xl text-xs flex flex-col gap-2 font-bold border border-green-100">
+               <div className="flex items-center gap-3">
+                 <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0 text-green-700">✓</div>
+                 <span>Password Reset Sent!</span>
+               </div>
+               <p className="font-normal text-slate-600 mt-1 pl-9">
+                 A reset link was sent to <strong>{email}</strong>. Use the link in your email to change your password to <strong>Asaka7788</strong>, then return here to log in.
+               </p>
+            </motion.div>
+          )}
           
           {mode === 'register' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
@@ -541,7 +577,19 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.securityCredentials}</label>
+            <div className="flex justify-between items-center mb-1.5 px-1">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">{t.securityCredentials}</label>
+              {mode === 'login' && (
+                <button
+                  type="button"
+                  disabled={resetLoading}
+                  onClick={handlePasswordReset}
+                  className="text-[10px] font-bold text-orange-600 hover:underline hover:text-orange-700 cursor-pointer"
+                >
+                  {resetLoading ? 'Sending link...' : 'Forgot Password?'}
+                </button>
+              )}
+            </div>
             <input required value={password} onChange={e => setPassword(e.target.value)} type="password" className="input-field" placeholder="••••••••" />
           </div>
 

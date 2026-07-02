@@ -272,7 +272,7 @@ export default function Portal({ user }: PortalProps) {
             onClick={() => setActiveTab('dashboard')} 
           />
 
-          {user.role !== 'admin' && (
+          {user.role !== 'admin' && user.role !== 'hod' && user.role !== 'ceo' && (
             <SidebarLink 
               icon={Plus} 
               label={t.applyForLeave} 
