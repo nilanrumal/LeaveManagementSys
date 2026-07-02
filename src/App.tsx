@@ -29,39 +29,10 @@ import { userService } from './services/db';
 import { UserProfile, UserRole } from './types';
 import Portal from './components/Portal';
 
-// --- Types ---
-type Language = 'en' | 'ta' | 'si';
-
-interface Translation {
-  title: string;
-  subtitle: string;
-  staffPortal: string;
-  applyNow: string;
-}
-
-const translations: Record<Language, Translation> = {
-  en: {
-    title: "Jaffna University Sri Lanka",
-    subtitle: "Empowering Minds, Shaping the Future",
-    staffPortal: "Staff Portal",
-    applyNow: "Apply Now"
-  },
-  ta: {
-    title: "யாழ்ப்பாணப் பல்கலைக்கழகம் இலங்கை",
-    subtitle: "அறிவை மேம்படுத்தி, எதிர்காலத்தை வடிவமைப்போம்",
-    staffPortal: "பணியாளர் போர்டல்",
-    applyNow: "இப்போது விண்ணப்பிக்கவும்"
-  },
-  si: {
-    title: "යාපනය විශ්වවිද්‍යාලය ශ්‍රී ලංකාව",
-    subtitle: "දැනුම සවිබල ගන්වමින්, අනාගතය හැඩගැස්වීම",
-    staffPortal: "සේවක ද්වාරය",
-    applyNow: "දැන් අයදුම් කරන්න"
-  }
-};
+import { translations, Language, Translation } from './translations';
 
 // --- Contexts ---
-const LanguageContext = createContext<{ 
+export const LanguageContext = createContext<{ 
   lang: Language; 
   setLang: (l: Language) => void;
   t: Translation;
@@ -70,6 +41,7 @@ const LanguageContext = createContext<{
 // --- Components ---
 
 const CreativeTitle = ({ isScrolled }: { isScrolled: boolean }) => {
+  const { t } = useContext(LanguageContext);
   return (
     <div className="relative p-[1.5px] rounded-full overflow-hidden flex items-center select-none shadow-sm">
       {/* Rotating gradient line representing the animated border line around the background */}
@@ -99,7 +71,7 @@ const CreativeTitle = ({ isScrolled }: { isScrolled: boolean }) => {
         <span className={`text-[11px] font-sans font-black uppercase tracking-wider ${
           isScrolled ? 'text-slate-800' : 'text-white'
         }`}>
-          Leave Management System
+          {t.leaveSystem}
         </span>
         <span className="text-[8px] sm:text-[9px] font-mono font-black tracking-widest uppercase bg-gradient-to-r from-orange-500 to-orange-600 text-white px-2 py-0.5 rounded-md">
           PRO
@@ -127,7 +99,7 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <div className="bg-amber-500 text-navy-950 p-2 rounded-lg"><GraduationCap size={24} /></div>
-          <span className={`font-sans font-black text-base sm:text-lg tracking-wider transition-colors ${isScrolled ? 'text-navy-900' : 'text-white'}`}>JAFFNA UNIVERSITY</span>
+          <span className={`font-sans font-black text-base sm:text-lg tracking-wider transition-colors ${isScrolled ? 'text-navy-900' : 'text-white'}`}>{t.jaffnaUniversity}</span>
         </div>
 
         <div className="hidden lg:flex items-center">
@@ -150,9 +122,9 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 
           <button 
             onClick={onOpenPortal}
-            className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-6 py-2.5 rounded-full text-sm font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2"
+            className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-6 py-2.5 rounded-full text-sm font-bold shadow-lg transition-transform active:scale-95 flex items-center gap-2 animate-pulse hover:animate-none"
           >
-            <User size={16} /> Login
+            <User size={16} /> {t.login}
           </button>
 
           <button onClick={() => setMobileMenuOpen(true)} className={`lg:hidden p-2 rounded-lg ${isScrolled ? 'text-navy-900' : 'text-white'}`}>
@@ -166,7 +138,7 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
           <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} className="fixed inset-0 bg-white z-[60] p-6 lg:hidden flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-center mb-10">
-                <span className="font-sans font-black text-navy-900 text-lg tracking-wider">JAFFNA UNIVERSITY</span>
+                <span className="font-sans font-black text-navy-900 text-lg tracking-wider">{t.jaffnaUniversity}</span>
                 <button onClick={() => setMobileMenuOpen(false)} className="text-slate-400"><X size={24} /></button>
               </div>
               <div className="py-6 border-b border-slate-100 mb-6">
@@ -186,7 +158,7 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
               </div>
             </div>
             <div className="text-center text-[10px] uppercase font-mono tracking-wider text-slate-400">
-              © 2026 Jaffna University Sri Lanka
+              © 2026 {t.title}
             </div>
           </motion.div>
         )}
@@ -211,26 +183,26 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 w-full animate-fade-in">
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
           <div className="inline-block px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-widest mb-6 border border-amber-500/20">
-            Academic Excellence & Leadership
+            {t.academicExcellence}
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-black text-white mb-6 tracking-tight leading-[1.1] uppercase">
             {t.title}
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-slate-200 max-w-2xl mb-10 font-medium leading-relaxed">
-            {t.subtitle}. Shaping professional success, research innovation, and academic integrity since 1974.
+            {t.subtitle}.
           </p>
           <div className="flex flex-wrap gap-4">
              <button 
               onClick={onOpenPortal}
               className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:shadow-amber-500/20 transition-all cursor-pointer"
              >
-              Enter Portal Gateway
+              {t.enterPortalGateway}
              </button>
              <button 
               onClick={onOpenPortal}
               className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-white/20 transition-all cursor-pointer"
              >
-              Staff Authenticator
+              {t.staffAuthenticator}
              </button>
           </div>
         </motion.div>
@@ -240,21 +212,22 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 }
 
 const AcademicFeatures = () => {
+  const { t } = useContext(LanguageContext);
   return (
     <section className="py-20 bg-white relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-amber-600 font-bold uppercase tracking-[0.15em] text-xs">Excellence in Action</span>
-          <h2 className="text-3xl font-sans font-black text-navy-900 mt-3 mb-4 tracking-tight">World-Class Faculty & Research</h2>
+          <span className="text-amber-600 font-bold uppercase tracking-[0.15em] text-xs">{t.excellenceInAction}</span>
+          <h2 className="text-3xl font-sans font-black text-navy-900 mt-3 mb-4 tracking-tight">{t.worldClassFaculty}</h2>
           <p className="text-slate-500 text-sm leading-relaxed max-w-xl mx-auto">
-            Our commitment to academic rigor and innovative research drives global impact and prepares students for a rapidly changing future.
+            {t.worldClassFacultyDesc}
           </p>
         </div>
         <div className="grid md:grid-cols-3 gap-12">
           {[
-            { title: 'Global Research', icon: Globe, color: 'bg-amber-50 text-amber-600', desc: 'Over 40 international research centers focused on sustainable development and AI ethics.' },
-            { title: 'Industry Leadership', icon: ShieldCheck, color: 'bg-amber-50 text-amber-600', desc: 'Direct partnerships with Fortune 500 companies for internships and executive mentoring.' },
-            { title: 'Student Success', icon: Users, color: 'bg-amber-50 text-amber-600', desc: 'A dedicated career center with a 98% employment rate for graduates within 6 months.' },
+            { title: t.globalResearch, icon: Globe, color: 'bg-amber-50 text-amber-600', desc: t.globalResearchDesc },
+            { title: t.industryLeadership, icon: ShieldCheck, color: 'bg-amber-50 text-amber-600', desc: t.industryLeadershipDesc },
+            { title: t.studentSuccess, icon: Users, color: 'bg-amber-50 text-amber-600', desc: t.studentSuccessDesc },
           ].map((item, idx) => (
             <motion.div 
                whileHover={{ y: -10 }}
@@ -339,127 +312,128 @@ export default function App() {
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-orange-50/20 text-slate-850 gap-6">
       <div className="w-10 h-10 border-4 border-slate-100 border-t-orange-500 rounded-full animate-spin" />
       <div className="flex flex-col items-center animate-pulse">
-        <span className="font-sans font-black text-sm tracking-wider text-slate-800 mb-1.5">JAFFNA UNIVERSITY</span>
-        <span className="text-slate-400 uppercase tracking-[0.3em] text-[9px] font-bold">Secure Gateway</span>
+        <span className="font-sans font-black text-sm tracking-wider text-slate-800 mb-1.5">{t.loadingSecure}</span>
+        <span className="text-slate-400 uppercase tracking-[0.3em] text-[9px] font-bold">{t.secureGateway}</span>
       </div>
     </div>
   );
 
-  if (currentUser) {
-    return <Portal user={currentUser} />;
-  }
-
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
-      <main className="min-h-screen bg-white font-sans selection:bg-orange-100 selection:text-slate-900">
-        <Navbar onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
-        <Hero onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
-        <AcademicFeatures />
+      {currentUser ? (
+        <Portal user={currentUser} />
+      ) : (
+        <main className="min-h-screen bg-white font-sans selection:bg-orange-100 selection:text-slate-900">
+          <Navbar onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
+          <Hero onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
+          <AcademicFeatures />
 
-        <section className="py-20 bg-white text-slate-800 relative border-t border-b border-orange-100 overflow-hidden">
-           <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-white opacity-40 pointer-events-none" />
-           <div className="max-w-4xl mx-auto text-center px-4 relative z-10">
-              <span className="text-orange-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-4 block">Internal Network</span>
-              <h2 className="text-2xl md:text-3xl font-sans font-black tracking-tight mb-5 uppercase text-slate-800">Professional Staff Administration</h2>
-              <p className="text-slate-500 text-xs md:text-sm mb-8 max-w-xl mx-auto leading-relaxed">
-                Unlock specialized leave management, departmental data, and administrative coordination tools designed for efficiency and transparency.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                 <button 
-                  onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
-                  className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-md hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  Enter Portal <ChevronRight size={16} />
-                </button>
-                <button 
-                  onClick={() => { setAuthMode('register'); setIsAuthModalOpen(true); }}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all cursor-pointer border border-slate-200"
-                >
-                  New Account
-                </button>
-              </div>
-           </div>
-        </section>
-
-        <footer className="bg-slate-50 py-20 border-t border-slate-100">
-           <div className="max-w-7xl mx-auto px-4 text-center">
-             <div className="flex items-center justify-center gap-3 mb-8">
-                <GraduationCap size={32} className="text-orange-500 animate-pulse" />
-                <span className="font-sans font-black text-2xl tracking-wider text-slate-800">JAFFNA UNIVERSITY</span>
-              </div>
-              <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enrollment Portal Setup:</span>
-                <div className="flex flex-wrap gap-3 justify-center">
-                  <button
-                    onClick={() => {
-                      setInitialRole('employee');
-                      setAuthMode('register');
-                      setIsAuthModalOpen(true);
-                    }}
-                    className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+          <section className="py-20 bg-white text-slate-800 relative border-t border-b border-orange-100 overflow-hidden">
+             <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 to-white opacity-40 pointer-events-none" />
+             <div className="max-w-4xl mx-auto text-center px-4 relative z-10">
+                <span className="text-orange-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-4 block">Internal Network</span>
+                <h2 className="text-2xl md:text-3xl font-sans font-black tracking-tight mb-5 uppercase text-slate-800">{t.professionalAdministration}</h2>
+                <p className="text-slate-500 text-xs md:text-sm mb-8 max-w-xl mx-auto leading-relaxed">
+                  {t.professionalAdministrationDesc}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                   <button 
+                    onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-md hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <User size={14} /> Create Staff Profile
+                    {t.enterPortalGateway} <ChevronRight size={16} />
                   </button>
-                  <button
-                    onClick={() => {
-                      setInitialRole('hod');
-                      setAuthMode('register');
-                      setIsAuthModalOpen(true);
-                    }}
-                    className="bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                  <button 
+                    onClick={() => { setAuthMode('register'); setIsAuthModalOpen(true); }}
+                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all cursor-pointer border border-slate-200"
                   >
-                    <User size={14} /> Create HOD Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      setInitialRole('ceo');
-                      setAuthMode('register');
-                      setIsAuthModalOpen(true);
-                    }}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                  >
-                    <User size={14} /> Create CEO Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      setInitialRole('admin');
-                      setAuthMode('register');
-                      setIsAuthModalOpen(true);
-                    }}
-                    className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                  >
-                    <ShieldCheck size={14} /> Create Admin Profile
+                    {t.newAccount}
                   </button>
                 </div>
-              </div>
-
-             <p className="text-slate-400 text-xs max-w-xl mx-auto leading-relaxed mb-8">
-               © 2026 Jaffna University Sri Lanka. Secure Staff Directory Portal. All staff actions are audited for security compliance.
-             </p>
-             <div className="flex justify-center gap-8 text-xs font-bold text-slate-300 uppercase underline-offset-4 tracking-widest">
-                <a href="#" className="hover:text-orange-500">Privacy</a>
-                <a href="#" className="hover:text-orange-500">Security</a>
-                <a href="#" className="hover:text-orange-500">Standards</a>
              </div>
-           </div>
-        </footer>
+          </section>
 
-        <AnimatePresence>
-          {isAuthModalOpen && (
-            <AuthModal 
-              mode={authMode} 
-              setMode={setAuthMode} 
-              onClose={() => setIsAuthModalOpen(false)} 
-              initialRole={initialRole}
-            />
-          )}
-        </AnimatePresence>
-      </main>
+          <footer className="bg-slate-50 py-20 border-t border-slate-100">
+             <div className="max-w-7xl mx-auto px-4 text-center">
+               <div className="flex items-center justify-center gap-3 mb-8">
+                  <GraduationCap size={32} className="text-orange-500 animate-pulse" />
+                  <span className="font-sans font-black text-2xl tracking-wider text-slate-800">{t.jaffnaUniversity}</span>
+                </div>
+                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.enrollmentSetup}</span>
+                  <div className="flex flex-wrap gap-3 justify-center">
+                    <button
+                      onClick={() => {
+                        setInitialRole('employee');
+                        setAuthMode('register');
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      <User size={14} /> {t.createStaffProfile}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInitialRole('hod');
+                        setAuthMode('register');
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      <User size={14} /> {t.createHodProfile}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInitialRole('ceo');
+                        setAuthMode('register');
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      <User size={14} /> {t.createCeoProfile}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setInitialRole('admin');
+                        setAuthMode('register');
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+                    >
+                      <ShieldCheck size={14} /> {t.createAdminProfile}
+                    </button>
+                  </div>
+                </div>
+
+               <p className="text-slate-400 text-xs max-w-xl mx-auto leading-relaxed mb-8">
+                 {t.copyright}
+               </p>
+               <div className="flex justify-center gap-8 text-xs font-bold text-slate-300 uppercase underline-offset-4 tracking-widest">
+                  <a href="#" className="hover:text-orange-500">{t.privacy}</a>
+                  <a href="#" className="hover:text-orange-500">{t.security}</a>
+                  <a href="#" className="hover:text-orange-500">{t.standards}</a>
+               </div>
+             </div>
+          </footer>
+
+          <AnimatePresence>
+            {isAuthModalOpen && (
+              <AuthModal 
+                mode={authMode} 
+                setMode={setAuthMode} 
+                onClose={() => setIsAuthModalOpen(false)} 
+                initialRole={initialRole}
+              />
+            )}
+          </AnimatePresence>
+        </main>
+      )}
     </LanguageContext.Provider>
   );
 }
 
 const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode: 'login' | 'register', setMode: (m: 'login' | 'register') => void, onClose: () => void, initialRole?: UserRole }) => {
+  const { t } = useContext(LanguageContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -514,8 +488,8 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
         <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 text-white relative">
           <button onClick={onClose} className="absolute top-6 right-6 text-white/70 hover:text-white transition-colors cursor-pointer"><X size={20} /></button>
           <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4"><User size={24} className="text-white" /></div>
-          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">{mode === 'login' ? 'Staff Authentication' : 'University Enrollment'}</h2>
-          <p className="text-white/80 text-xs font-light">Access the secure leave management ecosystem.</p>
+          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">{mode === 'login' ? t.staffAuthentication : t.universityEnrollment}</h2>
+          <p className="text-white/80 text-xs font-light">{t.accessSecureSystem}</p>
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-4">
@@ -529,22 +503,22 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           {mode === 'register' && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Full Legal Name</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.fullLegalName}</label>
                 <input required value={name} onChange={e => setName(e.target.value)} type="text" className="input-field" placeholder="Prof. Alexander Sterling" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Access Tier</label>
-                    <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="input-field bg-white">
-                      <option value="employee">Staff Member</option>
-                      <option value="hod">HOD (Head of Department)</option>
-                      <option value="ceo">CEO</option>
-                      <option value="admin">Administrator</option>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.accessTier}</label>
+                    <select value={role} onChange={e => setRole(e.target.value as UserRole)} className="input-field bg-white text-xs">
+                      <option value="employee">{t.staffMember}</option>
+                      <option value="hod">{t.hodRole}</option>
+                      <option value="ceo">{t.ceoRole}</option>
+                      <option value="admin">{t.adminRole}</option>
                     </select>
                  </div>
                  <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Faculty</label>
-                    <select value={dept} onChange={e => setDept(e.target.value)} className="input-field bg-white">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.faculty}</label>
+                    <select value={dept} onChange={e => setDept(e.target.value)} className="input-field bg-white text-xs">
                       <option>Humanities</option>
                       <option>Engineering</option>
                       <option>Medicine</option>
@@ -556,24 +530,24 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           )}
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Internal Email</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.internalEmail}</label>
             <input required value={email} onChange={e => setEmail(e.target.value)} type="email" className="input-field" placeholder="staff.id@university.edu" />
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Security Credentials</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.securityCredentials}</label>
             <input required value={password} onChange={e => setPassword(e.target.value)} type="password" className="input-field" placeholder="••••••••" />
           </div>
 
           <button disabled={loading} className="w-full primary-button py-3 text-sm flex items-center justify-center gap-2 mt-2">
-            {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : mode === 'login' ? 'Secure Login' : 'Create Profile'}
+            {loading ? <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" /> : mode === 'login' ? t.secureLogin : t.createProfile}
           </button>
 
           <div className="text-center pt-2">
              <p className="text-xs text-slate-400">
-               {mode === 'login' ? "Don't have credentials?" : "Already verified?"} {' '}
+               {mode === 'login' ? t.dontHaveCredentials : t.alreadyVerified} {' '}
                <button type="button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')} className="text-orange-600 font-bold hover:underline">
-                 {mode === 'login' ? 'Request Access' : 'Return to Login'}
+                 {mode === 'login' ? t.requestAccess : t.returnToLogin}
                </button>
              </p>
           </div>

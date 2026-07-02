@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { 
   BarChart3, 
   Calendar, 
@@ -33,12 +33,14 @@ import { signOut } from 'firebase/auth';
 import { leaveService, userService } from '../services/db';
 import { LeaveRequest, UserProfile, LeaveType, UserRole } from '../types';
 import { format } from 'date-fns';
+import { LanguageContext } from '../App';
 
 interface PortalProps {
   user: UserProfile;
 }
 
 export default function Portal({ user }: PortalProps) {
+  const { t } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports'>('dashboard');
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -254,15 +256,15 @@ export default function Portal({ user }: PortalProps) {
             <LayoutDashboard size={22} />
           </div>
           <div>
-            <span className="font-sans font-black text-sm tracking-tight block text-slate-800">Staff Console</span>
-            <span className="text-[9px] text-orange-500 font-sans tracking-widest font-black uppercase">JAFFNA UNIVERSITY</span>
+            <span className="font-sans font-black text-sm tracking-tight block text-slate-800">{t.staffConsole}</span>
+            <span className="text-[9px] text-orange-500 font-sans tracking-widest font-black uppercase">{t.jaffnaUniversity}</span>
           </div>
         </div>
 
         <nav className="flex-1 space-y-1.5">
           <SidebarLink 
             icon={LayoutDashboard} 
-            label="Dashboard" 
+            label={t.dashboard} 
             active={activeTab === 'dashboard'} 
             onClick={() => setActiveTab('dashboard')} 
           />
@@ -270,7 +272,7 @@ export default function Portal({ user }: PortalProps) {
           {user.role !== 'admin' && (
             <SidebarLink 
               icon={Plus} 
-              label="Apply for Leave" 
+              label={t.applyForLeave} 
               active={false} 
               onClick={() => setIsApplyModalOpen(true)} 
             />
@@ -280,7 +282,7 @@ export default function Portal({ user }: PortalProps) {
           {user.role === 'hod' && (
             <SidebarLink
               icon={UserCheck}
-              label="Staff Approvals"
+              label={t.staffApprovals}
               active={activeTab === 'approvals'}
               onClick={() => setActiveTab('approvals')}
             />
@@ -290,7 +292,7 @@ export default function Portal({ user }: PortalProps) {
           {user.role === 'ceo' && (
             <SidebarLink
               icon={CheckCircle}
-              label="CEO HOD Approvals"
+              label={t.ceoApprovals}
               active={activeTab === 'approvals'}
               onClick={() => setActiveTab('approvals')}
             />
@@ -300,7 +302,7 @@ export default function Portal({ user }: PortalProps) {
           {(user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
             <SidebarLink
               icon={BarChart3}
-              label="Leave Reports"
+              label={t.leaveReports}
               active={activeTab === 'reports'}
               onClick={() => setActiveTab('reports')}
             />
@@ -309,7 +311,7 @@ export default function Portal({ user }: PortalProps) {
           {/* Leave History / Total lists */}
           <SidebarLink 
             icon={Clock} 
-            label={user.role === 'admin' ? "All Leave Records" : "My Leave History"} 
+            label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
             active={activeTab === 'history'} 
             onClick={() => setActiveTab('history')} 
           />
@@ -318,7 +320,7 @@ export default function Portal({ user }: PortalProps) {
           {user.role === 'admin' && (
             <SidebarLink 
               icon={Briefcase} 
-              label="Staff Directory" 
+              label={t.staffDirectory} 
               active={activeTab === 'admin'} 
               onClick={() => {
                 setActiveTab('admin');
@@ -342,11 +344,11 @@ export default function Portal({ user }: PortalProps) {
             
             <div className="space-y-1 text-[11px] text-slate-600">
                <div className="flex justify-between items-center">
-                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">Access Tier:</span>
+                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">{t.accessTierLabel}</span>
                  <span className="capitalize font-bold text-orange-600">{user.role}</span>
                </div>
                <div className="flex justify-between items-center">
-                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">Faculty/Dept:</span>
+                 <span className="text-slate-400 uppercase tracking-wider text-[8px] font-bold">{t.facultyLabel}</span>
                  <span className="truncate max-w-[100px] font-bold text-slate-800">{user.department}</span>
                </div>
             </div>
@@ -357,7 +359,7 @@ export default function Portal({ user }: PortalProps) {
             className="flex items-center gap-3 w-full p-2.5 text-slate-500 hover:text-orange-600 hover:bg-orange-50 rounded-xl transition-all cursor-pointer"
           >
             <LogOut size={16} />
-            <span className="text-xs font-bold">Log Out</span>
+            <span className="text-xs font-bold">{t.signOut}</span>
           </button>
         </div>
       </aside>
@@ -369,18 +371,18 @@ export default function Portal({ user }: PortalProps) {
         <header className="flex justify-between items-center mb-8 bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm">
           <div>
             <h1 className="text-xl font-sans font-black tracking-tight text-slate-800">
-              {activeTab === 'admin' && 'University Directory Administration'}
-              {activeTab === 'approvals' && `${user.role === 'hod' ? 'Departmental' : 'Executive'} Leave Approvals`}
-              {activeTab === 'history' && 'Leave History Ledger'}
-              {activeTab === 'reports' && 'Academic Leave Analytics & Reports'}
-              {activeTab === 'dashboard' && `Academic Portal: Welcome, ${user.name}`}
+              {activeTab === 'admin' && t.staffDirectoryTitle}
+              {activeTab === 'approvals' && (user.role === 'hod' ? t.staffApprovals : t.ceoApprovals)}
+              {activeTab === 'history' && (user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory)}
+              {activeTab === 'reports' && t.leaveReports}
+              {activeTab === 'dashboard' && `${t.welcomeBack}, ${user.name}`}
             </h1>
             <p className="text-xs text-slate-400 mt-1">
-              {activeTab === 'admin' && 'Organize faculty access tiers, leave allowances, and campus roles.'}
-              {activeTab === 'approvals' && `Evaluate requests and check acting-person vacancy overlapping dates.`}
-              {activeTab === 'history' && 'Audit log of all registered time off transactions.'}
-              {activeTab === 'reports' && 'Generate and filter high-fidelity institutional leave reports across multiple timeframes.'}
-              {activeTab === 'dashboard' && 'Access details, keep track of holiday allocation, and check approval states.'}
+              {activeTab === 'admin' && t.staffDirectoryDesc}
+              {activeTab === 'approvals' && (user.role === 'hod' ? t.evalQueueDescHOD : t.evalQueueDescCEO)}
+              {activeTab === 'history' && (user.role === 'admin' ? t.leaveRecordsLedger : t.myRecentLeaves)}
+              {activeTab === 'reports' && t.reportConfigsDesc}
+              {activeTab === 'dashboard' && t.facultyPortalVerified}
             </p>
           </div>
           
@@ -389,7 +391,7 @@ export default function Portal({ user }: PortalProps) {
               onClick={() => setIsApplyModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
             >
-              <Plus size={16} /> Apply for Leave
+              <Plus size={16} /> {t.applyForLeave}
             </button>
           )}
         </header>
@@ -401,10 +403,10 @@ export default function Portal({ user }: PortalProps) {
             {/* Quick stats for employees/HODs/CEOs */}
             {user.role !== 'admin' && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard label="Yearly Entitlement" value={stats.total} icon={Calendar} color="blue" suffix="days" />
-                <StatCard label="Vacation Approved" value={stats.used} icon={CheckCircle} color="green" suffix="days" />
-                <StatCard label="Days Remaining" value={stats.remaining} icon={Clock} color="amber" suffix="days" />
-                <StatCard label="Awaiting Review" value={stats.pending} icon={AlertCircle} color="slate" suffix="requests" />
+                <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
+                <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
+                <StatCard label={t.remainingLeavesUnused} value={stats.remaining} icon={Clock} color="amber" suffix={t.days} />
+                <StatCard label={t.pendingLeavesEvaluation} value={stats.pending} icon={AlertCircle} color="slate" suffix={t.records} />
               </div>
             )}
 
@@ -417,22 +419,22 @@ export default function Portal({ user }: PortalProps) {
                     <UserIcon size={20} />
                  </div>
                  <div>
-                    <h2 className="text-sm font-sans font-black text-slate-800 uppercase tracking-tight">Official Staff Profile</h2>
-                    <p className="text-xs text-slate-500">Verified institutional data. Modification strictly limited to system administrators.</p>
+                    <h2 className="text-sm font-sans font-black text-slate-800 uppercase tracking-tight">{t.officialStaffProfile}</h2>
+                    <p className="text-xs text-slate-500">{t.profileVerifiedInstitutional}</p>
                  </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 <ProfileDisplayField label="Full Legal Name" value={user.name} />
-                 <ProfileDisplayField label="Academic Email" value={user.email} />
-                 <ProfileDisplayField label="Employee Identification Number" value={user.employeeNo || "Pending Allocation"} highlight />
-                 <ProfileDisplayField label="Department Faculty" value={user.department} />
+                 <ProfileDisplayField label={t.fullLegalName} value={user.name} />
+                 <ProfileDisplayField label={t.internalEmail} value={user.email} />
+                 <ProfileDisplayField label={t.actingPersonnelID} value={user.employeeNo || "Pending Allocation"} highlight />
+                 <ProfileDisplayField label={t.faculty} value={user.department} />
                  <ProfileDisplayField 
-                   label="Institutional Access Tier" 
-                   value={user.role === 'employee' ? 'Staff Member' : user.role === 'hod' ? 'HOD (Head of Department)' : user.role === 'ceo' ? 'Chief Executive Officer (CEO)' : 'Administrator'} 
+                   label={t.accessTier} 
+                   value={user.role === 'employee' ? t.staffMember : user.role === 'hod' ? t.hodRole : user.role === 'ceo' ? t.ceoRole : t.adminRole} 
                    badge={user.role} 
                  />
-                 <ProfileDisplayField label="Allocated Yearly Leave Limit" value={`${user.totalLeaveDays} Days`} />
+                 <ProfileDisplayField label={t.totalLeaveAllowance} value={`${user.totalLeaveDays} ${t.days}`} />
               </div>
 
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
@@ -446,7 +448,7 @@ export default function Portal({ user }: PortalProps) {
 
             {/* Recent list summary */}
             <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-               <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">My Recent Leaves</h3>
+               <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">{t.myRecentLeaves}</h3>
                {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
                   <div className="divide-y divide-slate-100">
                      {leaves.filter(l => l.employeeId === user.uid).slice(0, 3).map(rq => (
@@ -465,7 +467,7 @@ export default function Portal({ user }: PortalProps) {
                      ))}
                   </div>
                ) : (
-                  <p className="text-slate-400 py-6 text-center text-sm">No leave requests logged yet.</p>
+                  <p className="text-slate-400 py-6 text-center text-sm">{t.noLeavesFound}</p>
                )}
             </div>
           </div>
@@ -476,14 +478,14 @@ export default function Portal({ user }: PortalProps) {
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {user.role === 'admin' ? 'University Leave Records Ledger' : 'My Personal Leave Records'}
+                {user.role === 'admin' ? t.leaveRecordsLedger : t.myLeaveHistory}
               </h3>
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-64">
                   <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input 
                     type="text" 
-                    placeholder="Search by name, reason or ID..."
+                    placeholder={t.searchDirectory}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500/10"
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
@@ -495,9 +497,9 @@ export default function Portal({ user }: PortalProps) {
                   onChange={(e) => setStatusFilter(e.target.value)}
                 >
                   <option value="All">All Statuses</option>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
+                  <option value="Pending">{t.pending}</option>
+                  <option value="Approved">{t.approved}</option>
+                  <option value="Rejected">{t.rejected}</option>
                 </select>
               </div>
             </div>
@@ -506,12 +508,12 @@ export default function Portal({ user }: PortalProps) {
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-4">Employee Details</th>
-                    <th className="px-6 py-4">Leave Class</th>
-                    <th className="px-6 py-4">Duration Range</th>
-                    <th className="px-6 py-4">Acting Staff</th>
-                    <th className="px-6 py-4">Status / Approver</th>
-                    <th className="px-6 py-4 text-right">Reason Details</th>
+                    <th className="px-6 py-4">{t.employeeName}</th>
+                    <th className="px-6 py-4">{t.leaveType}</th>
+                    <th className="px-6 py-4">{t.startDateLabel} - {t.endDateLabel}</th>
+                    <th className="px-6 py-4">{t.actingPerson}</th>
+                    <th className="px-6 py-4">{t.status}</th>
+                    <th className="px-6 py-4 text-right">{t.leaveReason}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -548,13 +550,13 @@ export default function Portal({ user }: PortalProps) {
                           {leave.actingEmployeeNo ? (
                             <div className="space-y-1">
                                <p className="text-sm font-bold text-slate-800">{actInfo.name}</p>
-                               <p className="text-xs text-slate-500 font-mono">ID: {actInfo.empNo}</p>
+                               <p className="text-xs text-slate-500 font-mono font-bold">ID: {actInfo.empNo}</p>
                                {actInfo.hasConflict && (
                                  <div className="flex items-center gap-1 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded font-semibold border border-red-100 max-w-[180px]">
                                     <AlertTriangle size={10} className="text-red-500 flex-shrink-0" />
                                     <span className="truncate" title={actInfo.message}>{actInfo.message}</span>
                                  </div>
-                               )}
+                                )}
                             </div>
                           ) : (
                             <span className="text-xs text-slate-400 italic">None Assigned</span>
@@ -582,8 +584,8 @@ export default function Portal({ user }: PortalProps) {
                       <td colSpan={6} className="px-6 py-16 text-center text-slate-400">
                         <div className="flex flex-col items-center gap-2">
                            <FolderMinus size={48} className="opacity-10 text-navy-900" />
-                           <p className="font-bold text-sm">No leave history matches found.</p>
-                           <p className="text-xs">Adjust your search criteria.</p>
+                           <p className="font-bold text-sm">{t.noTransactionRecords}</p>
+                           <p className="text-xs">{t.noTransactionDesc}</p>
                         </div>
                       </td>
                     </tr>
@@ -600,20 +602,18 @@ export default function Portal({ user }: PortalProps) {
              {/* Report Action Panels */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
-                   <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">Report Configurations</h3>
-                   <p className="text-xs text-slate-500 mt-1">Specify parameters to isolate departments, employee nodes, and timeframes.</p>
+                   <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.reportConfigurations}</h3>
+                   <p className="text-xs text-slate-500 mt-1">{t.reportConfigsDesc}</p>
                 </div>
                 <div className="flex gap-3">
                    <button 
                      onClick={() => window.print()}
                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 text-xs transition cursor-pointer"
                    >
-                     <Printer size={15} /> Print/PDF Report
+                     <Printer size={15} /> {t.printPdfReport}
                    </button>
                 </div>
-             </div>
-
-             {/* Dynamic Multi-Section Filter Matrix */}
+             </div>             {/* Dynamic Multi-Section Filter Matrix */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                    <Filter size={16} className="text-amber-500" />
@@ -622,7 +622,7 @@ export default function Portal({ user }: PortalProps) {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                    {/* Period filter */}
                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Timeframe Range</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportTimeframe}</label>
                       <select 
                         value={reportPeriod} 
                         onChange={(e: any) => setReportPeriod(e.target.value)}
@@ -638,12 +638,12 @@ export default function Portal({ user }: PortalProps) {
 
                    {/* Department filter */}
                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Department / Faculty</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportDept}</label>
                       <select 
                         value={reportDeptFilter} 
                         onChange={(e) => {
-                          setReportDeptFilter(e.target.value);
-                          setReportEmployeeFilter('All');
+                           setReportDeptFilter(e.target.value);
+                           setReportEmployeeFilter('All');
                         }}
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
                       >
@@ -658,7 +658,7 @@ export default function Portal({ user }: PortalProps) {
 
                    {/* Employee filter */}
                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Specific Academic Node</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportEmployee}</label>
                       <select 
                         value={reportEmployeeFilter} 
                         onChange={(e) => setReportEmployeeFilter(e.target.value)}
@@ -678,7 +678,7 @@ export default function Portal({ user }: PortalProps) {
 
                    {/* Leave Type filter */}
                    <div>
-                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Leave Sub-category</label>
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportLeaveType}</label>
                       <select 
                         value={reportTypeFilter} 
                         onChange={(e) => setReportTypeFilter(e.target.value)}
@@ -760,13 +760,13 @@ export default function Portal({ user }: PortalProps) {
                            <div className="absolute right-0 bottom-0 translate-x-4 translate-y-4 opacity-5">
                               <Calendar size={180} />
                            </div>
-                           <p className="text-[10px] font-sans tracking-widest text-orange-100 font-bold uppercase">Total Approved Days</p>
+                           <p className="text-[10px] font-sans tracking-widest text-orange-100 font-bold uppercase">{t.totalApprovedDays}</p>
                            <p className="text-4xl font-sans font-black mt-2">{approvedDays}</p>
                            <p className="text-xs text-white/60 mt-2 font-medium">Approved calendar leave days</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
-                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Approval Rate</p>
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">{t.approvalRate}</p>
                            <p className="text-4xl font-sans font-black mt-2 text-slate-800">{approvalRate}%</p>
                            <div className="mt-2.5 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                               <div className="bg-emerald-500 h-full" style={{ width: `${approvalRate}%` }} />
@@ -775,13 +775,13 @@ export default function Portal({ user }: PortalProps) {
                         </div>
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
-                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">In Evaluation Pipeline</p>
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">{t.inEvaluationPipeline}</p>
                            <p className="text-4xl font-sans font-black mt-2 text-orange-500">{pendingRequests}</p>
                            <p className="text-xs text-slate-500 mt-2 font-medium">Pending approvals</p>
                         </div>
 
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl relative overflow-hidden shadow-sm">
-                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">Total Transactions</p>
+                           <p className="text-[10px] font-mono tracking-wider text-slate-400 font-bold uppercase">{t.totalTransactions}</p>
                            <p className="text-4xl font-sans font-black mt-2 text-slate-800">{totalRequests}</p>
                            <p className="text-xs text-slate-500 mt-2 font-medium">Requests in selected timeframe</p>
                         </div>
@@ -790,7 +790,7 @@ export default function Portal({ user }: PortalProps) {
                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                         {/* Creative Leave Distribution Bar Chart */}
                         <div className="bg-white border border-slate-200 p-6 rounded-3xl shadow-sm lg:col-span-5">
-                           <h4 className="font-sans font-black text-xs uppercase tracking-wider text-slate-850 mb-6">Distribution by Leave Category</h4>
+                           <h4 className="font-sans font-black text-xs uppercase tracking-wider text-slate-850 mb-6">{t.distributionCategory}</h4>
                            <div className="space-y-4">
                               {Object.entries(leaveTypeCounts).map(([type, val]) => {
                                  const pct = totalRequests > 0 ? Math.round((val / totalRequests) * 100) : 0;
@@ -825,10 +825,10 @@ export default function Portal({ user }: PortalProps) {
                         {/* Leave Trend & Summary Insights */}
                         <div className="bg-slate-900 text-white/95 p-6 rounded-2xl shadow-sm lg:col-span-7 flex flex-col justify-between">
                            <div>
-                              <h4 className="font-sans font-black text-xs uppercase tracking-wider text-orange-400 mb-4">Institutional Insights Summary</h4>
+                              <h4 className="font-sans font-black text-xs uppercase tracking-wider text-orange-400 mb-4">{t.institutionalInsights}</h4>
                               <div className="space-y-4 text-xs font-sans">
                                  <p className="leading-relaxed">
-                                    This visual report consolidates active leave datasets within your faculty department. Academic personnel resource availability is tracked dynamically against ongoing academic and administrative schedules.
+                                    {t.institutionalInsightsDesc}
                                  </p>
                                  <div className="grid grid-cols-2 gap-4 mt-6">
                                     <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
@@ -856,20 +856,20 @@ export default function Portal({ user }: PortalProps) {
                      {/* Main Report Table */}
                      <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                           <h4 className="font-serif italic font-bold text-navy-900 text-base">Leave Records Table Ledger</h4>
-                           <span className="text-[10px] font-mono bg-navy-900/5 text-navy-950 font-bold px-3 py-1 rounded-full">{filteredListByPeriod.length} Records</span>
+                           <h4 className="font-serif italic font-bold text-navy-900 text-base">{t.leaveRecordsLedger}</h4>
+                           <span className="text-[10px] font-mono bg-navy-900/5 text-navy-950 font-bold px-3 py-1 rounded-full">{filteredListByPeriod.length} {t.records}</span>
                         </div>
                         <div className="overflow-x-auto">
                            <table className="w-full text-left border-collapse font-sans">
                               <thead>
                                  <tr className="bg-slate-50 text-[10px] font-mono tracking-wider text-slate-400 uppercase border-b border-slate-100">
-                                    <th className="px-6 py-4">Employee</th>
-                                    <th className="px-6 py-4">Department</th>
-                                    <th className="px-6 py-4">Leave Range (Days)</th>
-                                    <th className="px-6 py-4">Type</th>
-                                    <th className="px-6 py-4">Acting Staff</th>
-                                    <th className="px-6 py-4">Status</th>
-                                    <th className="px-6 py-4">Reason</th>
+                                    <th className="px-6 py-4">{t.employeeName}</th>
+                                    <th className="px-6 py-4">{t.reportDept}</th>
+                                    <th className="px-6 py-4">{t.startDateLabel} - {t.endDateLabel}</th>
+                                    <th className="px-6 py-4">{t.leaveType}</th>
+                                    <th className="px-6 py-4">{t.actingPerson}</th>
+                                    <th className="px-6 py-4">{t.status}</th>
+                                    <th className="px-6 py-4">{t.leaveReason}</th>
                                  </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 text-xs">
@@ -923,8 +923,8 @@ export default function Portal({ user }: PortalProps) {
                                        <td colSpan={7} className="px-6 py-16 text-center text-slate-400">
                                           <div className="flex flex-col items-center gap-2">
                                              <FolderMinus size={48} className="opacity-10 text-orange-500" />
-                                             <p className="font-bold text-sm">No transaction records in this interval.</p>
-                                             <p className="text-xs">Loosen filters to load historical data logs.</p>
+                                             <p className="font-bold text-sm">{t.noTransactionRecords}</p>
+                                             <p className="text-xs">{t.noTransactionDesc}</p>
                                           </div>
                                        </td>
                                     </tr>
@@ -944,9 +944,9 @@ export default function Portal({ user }: PortalProps) {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div>
-                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">Leave Requests Awaiting Your Evaluation</h3>
+                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.evalQueue}</h3>
                  <p className="text-xs text-slate-500 mt-1">
-                   {user.role === 'hod' ? 'Standard Employees requests. Showing acting-person real-time calendars.' : 'HOD requests. Executive final review.'}
+                   {user.role === 'hod' ? t.evalQueueDescHOD : t.evalQueueDescCEO}
                  </p>
               </div>
             </div>
@@ -955,12 +955,12 @@ export default function Portal({ user }: PortalProps) {
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-4">Applicant</th>
-                    <th className="px-6 py-4">Leave Type</th>
-                    <th className="px-6 py-4">Duration Range</th>
-                    <th className="px-6 py-4">Acting Staff Calendar Info</th>
-                    <th className="px-6 py-4">Reason Statement</th>
-                    <th className="px-6 py-4 text-right">Appreciation Decision</th>
+                    <th className="px-6 py-4">{t.employeeName}</th>
+                    <th className="px-6 py-4">{t.leaveType}</th>
+                    <th className="px-6 py-4">{t.startDateLabel} - {t.endDateLabel}</th>
+                    <th className="px-6 py-4">{t.actingPerson}</th>
+                    <th className="px-6 py-4">{t.leaveReason}</th>
+                    <th className="px-6 py-4 text-right">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -1023,13 +1023,13 @@ export default function Portal({ user }: PortalProps) {
                                 onClick={() => setShowCommentModal({ id: leave.id, status: 'Approved' })}
                                 className="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold text-xs shadow-sm transition-all"
                               >
-                                Approve
+                                {t.approve}
                               </button>
                               <button 
                                 onClick={() => setShowCommentModal({ id: leave.id, status: 'Rejected' })}
                                 className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg font-bold text-xs shadow-sm transition-all"
                               >
-                                Reject
+                                {t.reject}
                               </button>
                             </div>
                           </td>
@@ -1041,8 +1041,7 @@ export default function Portal({ user }: PortalProps) {
                       <td colSpan={6} className="px-6 py-20 text-center text-slate-400">
                         <div className="flex flex-col items-center gap-2">
                            <CheckCircle2 size={48} className="text-green-500 opacity-60" />
-                           <p className="text-sm font-bold text-navy-900">Queue Cleared!</p>
-                           <p className="text-xs">No pending requests require your attention.</p>
+                           <p className="text-sm font-bold text-navy-900">{t.noPendingRequests}</p>
                         </div>
                       </td>
                     </tr>
@@ -1058,14 +1057,14 @@ export default function Portal({ user }: PortalProps) {
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div>
-                <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">University Staff Directory</h3>
-                <p className="text-xs text-slate-500">Edit access tiers, department faculty, or delete profiles from the central directory database.</p>
+                <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.staffDirectoryTitle}</h3>
+                <p className="text-xs text-slate-500">{t.staffDirectoryDesc}</p>
               </div>
               <div className="w-full md:w-64 relative">
                 <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input 
                   type="text" 
-                  placeholder="Search staff members..."
+                  placeholder={t.searchDirectory}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none"
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
@@ -1077,12 +1076,12 @@ export default function Portal({ user }: PortalProps) {
               <table className="w-full text-left">
                 <thead className="bg-slate-50/50 text-slate-400 text-xs font-bold uppercase tracking-wider">
                   <tr>
-                    <th className="px-6 py-4">Staff Name & Email</th>
-                    <th className="px-6 py-4">Employee Number</th>
-                    <th className="px-6 py-4">Department / Faculty</th>
-                    <th className="px-6 py-4">Security Level</th>
-                    <th className="px-6 py-4">Holiday Allowance</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                    <th className="px-6 py-4">{t.employeeName}</th>
+                    <th className="px-6 py-4">{t.actingPersonnelID}</th>
+                    <th className="px-6 py-4">{t.reportDept}</th>
+                    <th className="px-6 py-4">{t.accessTier}</th>
+                    <th className="px-6 py-4">{t.remainingDays}</th>
+                    <th className="px-6 py-4 text-right">{t.actions}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-sans">
@@ -1108,11 +1107,11 @@ export default function Portal({ user }: PortalProps) {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getRoleBadgeColor(usr.role)}`}>
-                            {usr.role === 'employee' ? 'Staff' : usr.role.toUpperCase()}
+                            {usr.role === 'employee' ? t.staffMember : usr.role === 'hod' ? t.hodRole : usr.role === 'ceo' ? t.ceoRole : t.adminRole}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-navy-900">
-                          {usr.totalLeaveDays} Days Limit
+                          {usr.totalLeaveDays} {t.days}
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex gap-2 justify-end">
@@ -1182,7 +1181,7 @@ export default function Portal({ user }: PortalProps) {
               className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden p-8"
             >
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-serif font-bold text-navy-900">Modify Faculty Profile</h3>
+                <h3 className="text-xl font-serif font-bold text-navy-900">{t.modifyFacultyProfile}</h3>
                 <button onClick={() => setEditingUser(null)} className="text-slate-400 hover:text-navy-900">
                   <X size={20} />
                 </button>
@@ -1191,7 +1190,7 @@ export default function Portal({ user }: PortalProps) {
               <div className="space-y-4">
                 {/* Employee Number - Locked & Read Only */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Employee Number (Immutable ID)</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.actingPersonnelID} (Immutable ID)</label>
                    <div className="relative">
                      <input 
                        type="text" 
@@ -1208,7 +1207,7 @@ export default function Portal({ user }: PortalProps) {
 
                 {/* Name */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Full Legal Name</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.fullLegalName}</label>
                    <input 
                      type="text" 
                      className="input-field" 
@@ -1219,7 +1218,7 @@ export default function Portal({ user }: PortalProps) {
 
                 {/* Email (Read Only too block accidental changes) */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Official email</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.internalEmail}</label>
                    <input 
                      type="text" 
                      disabled
@@ -1230,22 +1229,22 @@ export default function Portal({ user }: PortalProps) {
 
                 {/* Access Level */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Security Level</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.accessTier}</label>
                    <select 
                      className="input-field bg-white"
                      value={editingUser.role}
                      onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value as UserRole })}
                    >
-                     <option value="employee">Staff Member</option>
-                     <option value="hod">HOD (Head of Department)</option>
-                     <option value="ceo">CEO</option>
-                     <option value="admin">Administrator</option>
+                     <option value="employee">{t.staffMember}</option>
+                     <option value="hod">{t.hodRole}</option>
+                     <option value="ceo">{t.ceoRole}</option>
+                     <option value="admin">{t.adminRole}</option>
                    </select>
                 </div>
 
                 {/* Department Faculty */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Faculty / Department</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.faculty}</label>
                    <select 
                      className="input-field bg-white"
                      value={editingUser.department}
@@ -1261,7 +1260,7 @@ export default function Portal({ user }: PortalProps) {
 
                 {/* Total holidays limit */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Allocated Leave Days</label>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.totalLeaveAllowance}</label>
                    <input 
                      type="number" 
                      className="input-field" 
@@ -1276,7 +1275,7 @@ export default function Portal({ user }: PortalProps) {
                   onClick={() => setEditingUser(null)}
                   className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-sm"
                 >
-                  Cancel
+                  {t.cancel}
                 </button>
                 <button 
                   onClick={() => {
@@ -1292,7 +1291,7 @@ export default function Portal({ user }: PortalProps) {
                   }}
                   className="flex-1 bg-navy-900 text-white font-bold hover:bg-navy-800 py-3 rounded-2xl text-sm"
                 >
-                  Save Changes
+                  {t.saveProfiles}
                 </button>
               </div>
             </motion.div>
@@ -1312,11 +1311,11 @@ export default function Portal({ user }: PortalProps) {
               <div className="w-12 h-12 bg-amber-100 text-amber-700 rounded-full flex items-center justify-center mx-auto mb-4">
                 <AlertTriangle size={24} />
               </div>
-              <h4 className="text-lg font-bold text-navy-900 mb-2">Confirm Edit Action</h4>
+              <h4 className="text-lg font-bold text-navy-900 mb-2">{t.confirmEditAction}</h4>
               <p className="text-sm text-slate-500 mb-6">Are you sure you want to save these profile changes? The staff's departmental parameters will be saved.</p>
               <div className="flex gap-2">
-                <button onClick={() => setUserToConfirmEdit(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">Dismiss</button>
-                <button onClick={handleEditConfirm} className="flex-1 py-2.5 bg-navy-900 text-white font-semibold rounded-xl text-sm">Save Profiles</button>
+                <button onClick={() => setUserToConfirmEdit(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">{t.cancel}</button>
+                <button onClick={handleEditConfirm} className="flex-1 py-2.5 bg-navy-900 text-white font-semibold rounded-xl text-sm">{t.saveProfiles}</button>
               </div>
             </motion.div>
           </div>
@@ -1335,13 +1334,13 @@ export default function Portal({ user }: PortalProps) {
               <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Trash2 size={24} />
               </div>
-              <h4 className="text-lg font-bold text-navy-900 mb-2">Confirm Deletion</h4>
+              <h4 className="text-lg font-bold text-navy-900 mb-2">{t.confirmDeletion}</h4>
               <p className="text-sm text-slate-500 mb-6">
                 Are you sure you want to permanently delete <strong>{userToDelete.name}</strong> ({userToDelete.employeeNo}) from the university staff directory? This action is irreversible.
               </p>
               <div className="flex gap-2">
-                <button onClick={() => setUserToDelete(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">Dismiss</button>
-                <button onClick={handleDeleteConfirm} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-sm">Permanently Delete</button>
+                <button onClick={() => setUserToDelete(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">{t.cancel}</button>
+                <button onClick={handleDeleteConfirm} className="flex-1 py-2.5 bg-red-600 text-white font-bold rounded-xl text-sm">{t.deleteBtn}</button>
               </div>
             </motion.div>
           </div>
@@ -1358,7 +1357,7 @@ export default function Portal({ user }: PortalProps) {
               className="bg-white p-8 rounded-3xl max-w-md w-full relative z-10"
             >
               <h4 className="text-lg font-serif font-bold text-navy-900 mb-2 italic">
-                Comment on Leave {showCommentModal.status}
+                {t.comments} ({showCommentModal.status})
               </h4>
               <p className="text-xs text-slate-500 mb-4">You can optionally state a comment or administrative note for this decision record.</p>
               
@@ -1371,12 +1370,12 @@ export default function Portal({ user }: PortalProps) {
               />
 
               <div className="flex gap-3 mt-6">
-                <button onClick={() => setShowCommentModal(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">Cancel</button>
+                <button onClick={() => setShowCommentModal(null)} className="flex-1 py-2.5 bg-slate-100 font-bold rounded-xl text-sm">{t.cancel}</button>
                 <button 
                   onClick={handleUpdateStatusConfirm} 
                   className={`flex-1 py-2.5 text-white font-bold rounded-xl text-sm ${showCommentModal.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`}
                 >
-                  Confirm {showCommentModal.status}
+                  {showCommentModal.status === 'Approved' ? t.approve : t.reject}
                 </button>
               </div>
             </motion.div>
@@ -1464,6 +1463,7 @@ const ProfileDisplayField = ({ label, value, highlight, badge }: { label: string
 
 // Leave request Form Modal (including Acting Person verification errorDialog and checker)
 const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProfile, onClose: () => void, allUsers: UserProfile[], leaves: LeaveRequest[] }) => {
+  const { t } = useContext(LanguageContext);
   const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     startDate: '',
@@ -1593,8 +1593,8 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
           <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mb-4">
             <Plus size={24} className="text-white" />
           </div>
-          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">New Leave Request</h2>
-          <p className="text-white/80 text-xs">Fill in dates and designate acting personnel on campus.</p>
+          <h2 className="text-xl font-sans font-black uppercase tracking-tight mb-1">{t.newLeaveRequest}</h2>
+          <p className="text-white/80 text-xs">{t.fillLeaveForm}</p>
         </div>
 
         {submitted ? (
@@ -1606,9 +1606,9 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             >
               <Check size={28} strokeWidth={3} />
             </motion.div>
-            <h3 className="text-lg font-sans font-black uppercase text-slate-800 mb-2">Request Logged</h3>
+            <h3 className="text-lg font-sans font-black uppercase text-slate-800 mb-2">{t.requestLogged}</h3>
             <p className="text-slate-400 max-w-xs mx-auto text-xs leading-relaxed mb-6">
-              Your leave request has been submitted to authorized leaders for calendar checks.
+              {t.requestLoggedDesc}
             </p>
           </div>
         ) : (
@@ -1621,7 +1621,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             )}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Start Date</label>
+                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">{t.startDateLabel}</label>
                 <input 
                   type="date" 
                   required
@@ -1632,7 +1632,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">End Date</label>
+                <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">{t.endDateLabel}</label>
                 <input 
                   type="date" 
                   required
@@ -1645,7 +1645,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Leave Type</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">{t.leaveType}</label>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
                 {['Annual', 'Sick', 'Personal', 'Maternity/Paternity', 'Study'].map((type) => (
                   <button 
@@ -1665,7 +1665,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             {/* ACTING PERSON - Employee No Input */}
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">Acting Person Designation</label>
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">{t.actingPersonnelID}</label>
                 <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">Required Field</span>
               </div>
               <input 
@@ -1680,7 +1680,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">Reason for Leave</label>
+              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">{t.leaveReason}</label>
               <textarea 
                 rows={2}
                 required
@@ -1699,7 +1699,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
               {isSubmitting ? (
                 <Loader2 className="w-5 h-5 animate-spin text-white" />
               ) : (
-                'Submit Holiday Application'
+                t.submitRequest
               )}
             </button>
           </form>
