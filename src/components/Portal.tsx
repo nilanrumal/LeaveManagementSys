@@ -190,25 +190,29 @@ export default function Portal({ user }: PortalProps) {
       // Employees only view their own leave requests
       return l.employeeId === user.uid && matchesSearch && matchesStatus;
     } else if (user.role === 'hod') {
-      // HOD can see everything for approval, but typically views they can approve.
-      // Let's filter depending on tab
+      // HOD can see leaves in their own department
+      const isSameDept = l.department === user.department;
       if (activeTab === 'approvals') {
         const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
-        // HOD approves 'employee' role leaves only.
-        return leaveCreator?.role === 'employee' && matchesSearch && matchesStatus;
+        // HOD approves 'employee' role leaves only in their department
+        return leaveCreator?.role === 'employee' && isSameDept && matchesSearch && matchesStatus;
       }
-      return matchesSearch && matchesStatus;
+      return isSameDept && matchesSearch && matchesStatus;
     } else if (user.role === 'ceo') {
-      // CEO approves HOD leaves.
+      // CEO approves HOD leaves across any department
       if (activeTab === 'approvals') {
         const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
         // CEO approves 'hod' role leaves only.
         return leaveCreator?.role === 'hod' && matchesSearch && matchesStatus;
       }
       return matchesSearch && matchesStatus;
+    } else if (user.role === 'admin') {
+      // Admins see leaves of their own department
+      const isSameDept = l.department === user.department;
+      return isSameDept && matchesSearch && matchesStatus;
     }
     
-    // Admins see all leaves read-only
+    // Fallback
     return matchesSearch && matchesStatus;
   });
 
@@ -692,14 +696,12 @@ export default function Portal({ user }: PortalProps) {
             </p>
           </div>
           
-          {user.role !== 'admin' && (
-            <button 
-              onClick={() => setIsApplyModalOpen(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
-            >
-              <Plus size={16} /> {t.applyForLeave}
-            </button>
-          )}
+          <button 
+            onClick={() => setIsApplyModalOpen(true)}
+            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
+          >
+            <Plus size={16} /> {t.applyForLeave}
+          </button>
         </header>
 
         {/* -------------------- TAB: DASHBOARD -------------------- */}
