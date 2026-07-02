@@ -609,7 +609,7 @@ export default function Portal({ user }: PortalProps) {
           )}
 
           {/* Leave Analytics & Reports Tab */}
-          {(user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
+          {(user.role === 'ceo' || user.role === 'admin') && (
             <SidebarLink
               icon={BarChart3}
               label={t.leaveReports}
@@ -619,12 +619,14 @@ export default function Portal({ user }: PortalProps) {
           )}
 
           {/* Leave History / Total lists */}
-          <SidebarLink 
-            icon={Clock} 
-            label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
-            active={activeTab === 'history'} 
-            onClick={() => setActiveTab('history')} 
-          />
+          {(user.role === 'employee' || user.role === 'admin') && (
+            <SidebarLink 
+              icon={Clock} 
+              label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
+              active={activeTab === 'history'} 
+              onClick={() => setActiveTab('history')} 
+            />
+          )}
 
           {/* Admin Directory Tab */}
           {user.role === 'admin' && (
@@ -696,20 +698,22 @@ export default function Portal({ user }: PortalProps) {
             </p>
           </div>
           
-          <button 
-            onClick={() => setIsApplyModalOpen(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
-          >
-            <Plus size={16} /> {t.applyForLeave}
-          </button>
+          {user.role === 'employee' && (
+            <button 
+              onClick={() => setIsApplyModalOpen(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
+            >
+              <Plus size={16} /> {t.applyForLeave}
+            </button>
+          )}
         </header>
 
         {/* -------------------- TAB: DASHBOARD -------------------- */}
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
             
-            {/* Quick stats for employees/HODs/CEOs */}
-            {user.role !== 'admin' && (
+            {/* Quick stats for employees only */}
+            {user.role === 'employee' && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
                 <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
@@ -754,30 +758,32 @@ export default function Portal({ user }: PortalProps) {
               </div>
             </div>
 
-            {/* Recent list summary */}
-            <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
-               <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">{t.myRecentLeaves}</h3>
-               {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
-                  <div className="divide-y divide-slate-100">
-                     {leaves.filter(l => l.employeeId === user.uid).slice(0, 3).map(rq => (
-                        <div key={rq.id} className="py-4 flex justify-between items-center text-sm">
-                           <div>
-                              <p className="font-bold text-slate-800">{rq.type} Leave</p>
-                              <p className="text-xs text-slate-500">{format(new Date(rq.startDate), 'MMMM d, yyyy')} - {format(new Date(rq.endDate), 'MMMM d, yyyy')}</p>
-                           </div>
-                           <div className="flex items-center gap-3">
-                              {rq.actingEmployeeNo && (
-                                <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg font-mono">Acting: {rq.actingEmployeeNo}</span>
-                              )}
-                              <StatusBadge status={rq.status} />
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-               ) : (
-                  <p className="text-slate-400 py-6 text-center text-sm">{t.noLeavesFound}</p>
-               )}
-            </div>
+            {/* Recent list summary for employees only */}
+            {user.role === 'employee' && (
+              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                 <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">{t.myRecentLeaves}</h3>
+                 {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
+                    <div className="divide-y divide-slate-100">
+                       {leaves.filter(l => l.employeeId === user.uid).slice(0, 3).map(rq => (
+                          <div key={rq.id} className="py-4 flex justify-between items-center text-sm">
+                             <div>
+                                <p className="font-bold text-slate-800">{rq.type} Leave</p>
+                                <p className="text-xs text-slate-500">{format(new Date(rq.startDate), 'MMMM d, yyyy')} - {format(new Date(rq.endDate), 'MMMM d, yyyy')}</p>
+                             </div>
+                             <div className="flex items-center gap-3">
+                                {rq.actingEmployeeNo && (
+                                  <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg font-mono">Acting: {rq.actingEmployeeNo}</span>
+                                )}
+                                <StatusBadge status={rq.status} />
+                             </div>
+                          </div>
+                       ))}
+                    </div>
+                 ) : (
+                    <p className="text-slate-400 py-6 text-center text-sm">{t.noLeavesFound}</p>
+                 )}
+              </div>
+            )}
           </div>
         )}
 
@@ -904,8 +910,8 @@ export default function Portal({ user }: PortalProps) {
           </div>
         )}
 
-        {/* -------------------- TAB: REPORTS (HOD, CEO & ADMIN) -------------------- */}
-        {activeTab === 'reports' && (user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
+        {/* -------------------- TAB: REPORTS (CEO & ADMIN) -------------------- */}
+        {activeTab === 'reports' && (user.role === 'ceo' || user.role === 'admin') && (
           <div className="space-y-8 print:p-0">
              {/* CEO Executive Report Center */}
              {user.role === 'ceo' && (
