@@ -191,11 +191,13 @@ export default function Portal({ user }: PortalProps) {
       return l.employeeId === user.uid && matchesSearch && matchesStatus;
     } else if (user.role === 'hod') {
       // HOD can see leaves in their own department
-      const isSameDept = l.department === user.department;
+      const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
       if (activeTab === 'approvals') {
         const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
-        // HOD approves 'employee' role leaves only in their department
-        return leaveCreator?.role === 'employee' && isSameDept && matchesSearch && matchesStatus;
+        // HOD approves 'employee' role leaves only in their department.
+        // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
+        const isEmployeeOrLoading = !leaveCreator || leaveCreator.role === 'employee';
+        return l.employeeId !== user.uid && isEmployeeOrLoading && isSameDept && matchesSearch && matchesStatus;
       }
       return isSameDept && matchesSearch && matchesStatus;
     } else if (user.role === 'ceo') {
@@ -203,12 +205,14 @@ export default function Portal({ user }: PortalProps) {
       if (activeTab === 'approvals') {
         const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
         // CEO approves 'hod' role leaves only.
-        return leaveCreator?.role === 'hod' && matchesSearch && matchesStatus;
+        // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
+        const isHodOrLoading = !leaveCreator || leaveCreator.role === 'hod';
+        return l.employeeId !== user.uid && isHodOrLoading && matchesSearch && matchesStatus;
       }
       return matchesSearch && matchesStatus;
     } else if (user.role === 'admin') {
       // Admins see leaves of their own department
-      const isSameDept = l.department === user.department;
+      const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
       return isSameDept && matchesSearch && matchesStatus;
     }
     
