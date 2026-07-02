@@ -10,9 +10,10 @@ import { UserRole } from '../types';
 
 interface EnrollModalProps {
   onClose: () => void;
+  currentUserRole: string;
 }
 
-export default function EnrollModal({ onClose }: EnrollModalProps) {
+export default function EnrollModal({ onClose, currentUserRole }: EnrollModalProps) {
   const { t } = useContext(LanguageContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -26,6 +27,10 @@ export default function EnrollModal({ onClose }: EnrollModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentUserRole !== 'admin') {
+      setError('Unauthorized: Only Administrators can perform user CRUD operations.');
+      return;
+    }
     setLoading(true);
     setError('');
     try {

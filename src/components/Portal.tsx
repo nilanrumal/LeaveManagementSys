@@ -219,6 +219,10 @@ export default function Portal({ user }: PortalProps) {
 
   // CRUD Admin functions
   const handleEditConfirm = async () => {
+    if (user.role !== 'admin') {
+      alert("Unauthorized: Only Administrators can perform user CRUD operations.");
+      return;
+    }
     if (!userToConfirmEdit) return;
     try {
       await userService.updateProfile(userToConfirmEdit.id, userToConfirmEdit.data);
@@ -230,6 +234,10 @@ export default function Portal({ user }: PortalProps) {
   };
 
   const handleDeleteConfirm = async () => {
+    if (user.role !== 'admin') {
+      alert("Unauthorized: Only Administrators can perform user CRUD operations.");
+      return;
+    }
     if (!userToDelete) return;
     try {
       await userService.deleteProfile(userToDelete.uid);
@@ -1176,8 +1184,9 @@ export default function Portal({ user }: PortalProps) {
 
       {/* ----------------- MODAL: ENROLL NEW PROFILE ----------------- */}
       <AnimatePresence>
-        {isEnrollModalOpen && (
+        {isEnrollModalOpen && user.role === 'admin' && (
           <EnrollModal 
+            currentUserRole={user.role}
             onClose={() => setIsEnrollModalOpen(false)} 
           />
         )}
@@ -1185,7 +1194,7 @@ export default function Portal({ user }: PortalProps) {
 
       {/* ----------------- MODAL: ADMIN EDIT ----------------- */}
       <AnimatePresence>
-        {editingUser && (
+        {editingUser && user.role === 'admin' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }} 
@@ -1321,7 +1330,7 @@ export default function Portal({ user }: PortalProps) {
 
       {/* ---------------- CONFIRMATION: EDIT PROFILE ---------------- */}
       <AnimatePresence>
-        {userToConfirmEdit && (
+        {userToConfirmEdit && user.role === 'admin' && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/50" />
             <motion.div 
@@ -1344,7 +1353,7 @@ export default function Portal({ user }: PortalProps) {
 
       {/* ---------------- CONFIRMATION: DELETE PROFILE ---------------- */}
       <AnimatePresence>
-        {userToDelete && (
+        {userToDelete && user.role === 'admin' && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setUserToDelete(null)} className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
             <motion.div 
