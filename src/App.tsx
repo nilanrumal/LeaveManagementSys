@@ -268,6 +268,7 @@ export default function App() {
       if (u) {
         setLoading(true);
         unsubscribeProfile = userService.listenUserProfile(u.uid, async (profile) => {
+          const isAsanka = u.email?.trim().toLowerCase() === 'asanka@gmail.com';
           if (!profile) {
             if (isRegistering) {
               return;
@@ -277,10 +278,10 @@ export default function App() {
               const newProfile: UserProfile = {
                 uid: u.uid,
                 email: u.email || '',
-                name: u.displayName || u.email?.split('@')[0] || 'Faculty Member',
-                role: 'employee',
-                department: 'Academic',
-                totalLeaveDays: 25,
+                name: isAsanka ? 'Asanka (Admin)' : (u.displayName || u.email?.split('@')[0] || 'Faculty Member'),
+                role: isAsanka ? 'admin' : 'employee',
+                department: isAsanka ? 'Administration' : 'Academic',
+                totalLeaveDays: isAsanka ? 30 : 25,
                 usedLeaveCount: 0,
                 createdAt: Date.now(),
                 employeeNo: empNo
@@ -292,6 +293,17 @@ export default function App() {
               setLoading(false);
             }
           } else {
+            if (isAsanka && profile.role !== 'admin') {
+              try {
+                await userService.updateProfile(profile.uid, {
+                  role: 'admin',
+                  totalLeaveDays: 30,
+                  department: 'Administration'
+                });
+              } catch (err) {
+                console.error("Error upgrading user to admin:", err);
+              }
+            }
             setCurrentUser(profile);
             setLoading(false);
           }
@@ -406,9 +418,47 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
     e.preventDefault();
     setLoading(true);
     setError('');
+    const normalizedEmail = email.trim().toLowerCase();
+    const isAsanka = normalizedEmail === 'asanka@gmail.com';
     try {
       if (mode === 'login') {
-        await signInWithEmailAndPassword(auth, email, password);
+        try {
+          await signInWithEmailAndPassword(auth, email.trim(), password);
+        } catch (loginErr: any) {
+          if (isAsanka && (
+            loginErr.code === 'auth/user-not-found' || 
+            loginErr.code === 'auth/invalid-credential' || 
+            loginErr.code === 'auth/invalid-login-credentials' ||
+            loginErr.message?.includes('user-not-found')
+          )) {
+            try {
+              // Try registering them automatically to make it absolutely seamless!
+              isRegistering = true;
+              const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+              const empNo = await userService.getNextEmployeeNumber();
+              await userService.createProfile({
+                uid: cred.user.uid,
+                email: email.trim(),
+                name: 'Asanka (Admin)',
+                role: 'admin',
+                department: 'Administration',
+                totalLeaveDays: 30,
+                usedLeaveCount: 0,
+                createdAt: Date.now(),
+                employeeNo: empNo
+              });
+            } catch (regErr: any) {
+              if (regErr.code === 'auth/email-already-in-use') {
+                // If they exist already, it means the password they entered was wrong
+                throw new Error("Invalid login credentials. Please check your password.");
+              } else {
+                throw regErr;
+              }
+            }
+          } else {
+            throw loginErr;
+          }
+        }
       } else {
         isRegistering = true;
         const cred = await createUserWithEmailAndPassword(auth, email, password);
@@ -416,10 +466,10 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
         await userService.createProfile({
           uid: cred.user.uid,
           email,
-          name,
-          role,
-          department: dept,
-          totalLeaveDays: role === 'admin' ? 30 : 25,
+          name: isAsanka ? 'Asanka (Admin)' : name,
+          role: isAsanka ? 'admin' : role,
+          department: isAsanka ? 'Administration' : dept,
+          totalLeaveDays: (isAsanka || role === 'admin') ? 30 : 25,
           usedLeaveCount: 0,
           createdAt: Date.now(),
           employeeNo: empNo
