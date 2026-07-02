@@ -36,6 +36,7 @@ import { LeaveRequest, UserProfile, LeaveType, UserRole } from '../types';
 import { format } from 'date-fns';
 import { LanguageContext } from '../App';
 import EnrollModal from './EnrollModal';
+import { jsPDF } from 'jspdf';
 
 interface PortalProps {
   user: UserProfile;
@@ -58,6 +59,7 @@ export default function Portal({ user }: PortalProps) {
   const [reportTypeFilter, setReportTypeFilter] = useState<string>('All');
   const [reportDeptFilter, setReportDeptFilter] = useState<string>(user?.department || 'All');
   const [reportEmployeeFilter, setReportEmployeeFilter] = useState<string>('All');
+  const [ceoPdfFilter, setCeoPdfFilter] = useState<'1m' | '3m' | '6m' | '1y'>('3m');
 
   // Admin Profile Management States
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -215,6 +217,306 @@ export default function Portal({ user }: PortalProps) {
     used: leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
     pending: leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending').length,
     remaining: user.totalLeaveDays - leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
+  };
+
+  const handleDownloadCEOReport = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const now = Date.now();
+    const rangeDays = ceoPdfFilter === '1m' ? 30 : ceoPdfFilter === '3m' ? 90 : ceoPdfFilter === '6m' ? 180 : 365;
+    
+    const reportLeaves = leaves.filter(l => {
+      const leaveTime = new Date(l.startDate).getTime();
+      const daysDiff = (now - leaveTime) / (1000 * 60 * 60 * 24);
+      return Math.abs(daysDiff) <= rangeDays;
+    });
+
+    // Sort leaves by start date descending
+    reportLeaves.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+    let approvedDays = 0;
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+    const typeCounts: Record<string, number> = {
+      Annual: 0,
+      Sick: 0,
+      Personal: 0,
+      'Maternity/Paternity': 0,
+      Study: 0
+    };
+
+    reportLeaves.forEach(l => {
+      const duration = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (l.status === 'Approved') {
+        approvedDays += duration;
+        approvedCount++;
+      } else if (l.status === 'Pending') {
+        pendingCount++;
+      } else if (l.status === 'Rejected') {
+        rejectedCount++;
+      }
+      if (typeCounts[l.type] !== undefined) {
+        typeCounts[l.type]++;
+      }
+    });
+
+    const totalRequests = reportLeaves.length;
+    const approvalRate = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 100;
+
+    // Draw PDF content
+    doc.setFillColor(249, 115, 22); // Orange
+    doc.rect(14, 15, 182, 1.5, 'F');
+
+    // Title Block
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text('JAFFNA UNIVERSITY', 14, 25);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(71, 85, 105);
+    doc.text('CEO OFFICE - EXECUTIVE LEAVE SUMMARY REPORT', 14, 31);
+
+    // Meta Info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    const periodLabel = {
+      '1m': '1 Month (Past 30 Days)',
+      '3m': '3 Months (Past 90 Days)',
+      '6m': '6 Months (Past 180 Days)',
+      '1y': '1 Year (Past 365 Days)'
+    }[ceoPdfFilter];
+    doc.text(`Report Timeframe: ${periodLabel}`, 14, 37);
+    doc.text(`Generated On: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} (UTC)`, 14, 41);
+
+    // Confidential text right-aligned
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(239, 68, 68);
+    doc.text('CONFIDENTIAL / EXECUTIVE PRIVILEGE', 196 - doc.getTextWidth('CONFIDENTIAL / EXECUTIVE PRIVILEGE'), 25);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    const viewerText = `Authorized Reviewer: CEO (${user.name})`;
+    doc.text(viewerText, 196 - doc.getTextWidth(viewerText), 31);
+
+    // Divider
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(14, 45, 196, 45);
+
+    // KPI Blocks
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, 49, 42, 22, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVED DAYS', 18, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(249, 115, 22);
+    doc.text(`${approvedDays} Days`, 18, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(60, 49, 42, 22, 'F');
+    doc.rect(60, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVAL RATE', 64, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129);
+    doc.text(`${approvalRate}%`, 64, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(106, 49, 42, 22, 'F');
+    doc.rect(106, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('PENDING PIPELINE', 110, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text(`${pendingCount} Apps`, 110, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(152, 49, 44, 22, 'F');
+    doc.rect(152, 49, 44, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('TOTAL APPLICATIONS', 156, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`${totalRequests} Records`, 156, 64);
+
+    // Distribution
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('LEAVE CATEGORY DISTRIBUTION', 14, 79);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Distribution and counts of all requested leave profiles within this selected period.', 14, 83);
+
+    let chartY = 88;
+    Object.entries(typeCounts).forEach(([type, count]) => {
+      const percentage = totalRequests > 0 ? count / totalRequests : 0;
+      const barMaxWidth = 100;
+      const barWidth = percentage * barMaxWidth;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${type} Leave`, 14, chartY + 4);
+
+      // Bar BG
+      doc.setFillColor(241, 245, 249);
+      doc.rect(55, chartY + 1, barMaxWidth, 4, 'F');
+
+      if (barWidth > 0) {
+        doc.setFillColor(249, 115, 22);
+        doc.rect(55, chartY + 1, barWidth, 4, 'F');
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${count} (${Math.round(percentage * 100)}%)`, 160, chartY + 4);
+
+      chartY += 7;
+    });
+
+    let tableY = chartY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('DETAILED INSTITUTIONAL LEAVE LEDGER', 14, tableY);
+
+    tableY += 5;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(14, tableY, 182, 8, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Employee', 16, tableY + 5.5);
+    doc.text('Department', 55, tableY + 5.5);
+    doc.text('Dates & Total Days', 85, tableY + 5.5);
+    doc.text('Type', 130, tableY + 5.5);
+    doc.text('Status', 152, tableY + 5.5);
+    doc.text('Reason', 170, tableY + 5.5);
+
+    let rowY = tableY + 8;
+    let pageNum = 1;
+
+    if (reportLeaves.length === 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('No transaction records logged in this timeframe.', 14, rowY + 8);
+    } else {
+      reportLeaves.forEach((l) => {
+        if (rowY > 265) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`Jaffna University Staff Leave Ledger • CEO Executive Report • Page ${pageNum}`, 14, 287);
+          doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+          doc.addPage();
+          pageNum++;
+          
+          rowY = 20;
+          doc.setFillColor(249, 115, 22);
+          doc.rect(14, rowY, 182, 1, 'F');
+          
+          rowY += 3;
+          doc.setFillColor(15, 23, 42);
+          doc.rect(14, rowY, 182, 8, 'F');
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(255, 255, 255);
+          doc.text('Employee', 16, rowY + 5.5);
+          doc.text('Department', 55, rowY + 5.5);
+          doc.text('Dates & Total Days', 85, rowY + 5.5);
+          doc.text('Type', 130, rowY + 5.5);
+          doc.text('Status', 152, rowY + 5.5);
+          doc.text('Reason', 170, rowY + 5.5);
+
+          rowY += 8;
+        }
+
+        doc.setFillColor(rowY % 20 === 0 ? 255 : 248, rowY % 20 === 0 ? 255 : 250, rowY % 20 === 0 ? 255 : 252);
+        doc.rect(14, rowY, 182, 10, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        
+        const empText = l.employeeName.length > 20 ? l.employeeName.substring(0, 18) + '..' : l.employeeName;
+        doc.text(empText, 16, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`#${l.employeeNo || 'No ID'}`, 16, rowY + 9);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(l.department, 55, rowY + 6.5);
+
+        const datesText = `${format(new Date(l.startDate), 'MMM d')} - ${format(new Date(l.endDate), 'MMM d, yy')}`;
+        const daysCount = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(30, 41, 59);
+        doc.text(datesText, 85, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(249, 115, 22);
+        doc.text(`${daysCount} ${daysCount === 1 ? 'day' : 'days'} total`, 85, rowY + 9);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(l.type, 130, rowY + 6.5);
+
+        let statusColor = [71, 85, 105];
+        if (l.status === 'Approved') statusColor = [16, 185, 129];
+        else if (l.status === 'Rejected') statusColor = [239, 68, 68];
+        else if (l.status === 'Pending') statusColor = [245, 158, 11];
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.text(l.status, 152, rowY + 6.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        const reasonText = l.reason && l.reason.length > 18 ? l.reason.substring(0, 16) + '...' : (l.reason || 'No Reason');
+        doc.text(reasonText, 170, rowY + 6.5);
+
+        rowY += 10;
+      });
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Jaffna University Staff Leave Ledger • CEO Executive Report • Page ${pageNum}`, 14, 287);
+    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+    doc.save(`JaffnaUni_CEO_Leave_Summary_Report_${ceoPdfFilter}.pdf`);
   };
 
   // CRUD Admin functions
@@ -610,6 +912,68 @@ export default function Portal({ user }: PortalProps) {
         {/* -------------------- TAB: REPORTS (HOD, CEO & ADMIN) -------------------- */}
         {activeTab === 'reports' && (user.role === 'hod' || user.role === 'ceo' || user.role === 'admin') && (
           <div className="space-y-8 print:p-0">
+             {/* CEO Executive Report Center */}
+             {user.role === 'ceo' && (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
+                   {/* Glowing decorative gradient */}
+                   <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                   <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                   
+                   <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                      <div className="space-y-2">
+                         <div className="inline-flex items-center gap-2 bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-xl border border-orange-500/20 text-[10px] font-mono font-bold uppercase tracking-wider">
+                            Executive Privilege
+                         </div>
+                         <h3 className="font-sans font-black text-lg tracking-tight">CEO Executive Leave Summary Report</h3>
+                         <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                            Generate and download a secure corporate PDF ledger summarizing institutional leave requests, department workloads, and employee capacity metrics.
+                         </p>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+                         <div>
+                            <span className="block text-[9px] uppercase font-mono font-bold tracking-wider text-slate-400 mb-1.5">Select Timeframe</span>
+                            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                               {(['1m', '3m', '6m', '1y'] as const).map((period) => {
+                                  const label = {
+                                     '1m': '1 Month',
+                                     '3m': '3 Months',
+                                     '6m': '6 Months',
+                                     '1y': '1 Year'
+                                  }[period];
+                                  const active = ceoPdfFilter === period;
+                                  return (
+                                     <button
+                                       key={period}
+                                       type="button"
+                                       onClick={() => setCeoPdfFilter(period)}
+                                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          active 
+                                            ? 'bg-orange-500 text-white shadow-md' 
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                       }`}
+                                     >
+                                        {label}
+                                     </button>
+                                  );
+                               })}
+                            </div>
+                         </div>
+                         
+                         <div className="flex items-end pt-3 sm:pt-0">
+                            <button
+                              type="button"
+                              onClick={handleDownloadCEOReport}
+                              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                            >
+                               <Download size={14} /> Download PDF Report
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             )}
+
              {/* Report Action Panels */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
