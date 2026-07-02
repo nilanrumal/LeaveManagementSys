@@ -25,7 +25,8 @@ import {
   AlertTriangle,
   FolderMinus,
   Briefcase,
-  Printer
+  Printer,
+  UserPlus
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
@@ -34,6 +35,7 @@ import { leaveService, userService } from '../services/db';
 import { LeaveRequest, UserProfile, LeaveType, UserRole } from '../types';
 import { format } from 'date-fns';
 import { LanguageContext } from '../App';
+import EnrollModal from './EnrollModal';
 
 interface PortalProps {
   user: UserProfile;
@@ -45,6 +47,7 @@ export default function Portal({ user }: PortalProps) {
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
   
   // Filters
   const [filter, setFilter] = useState('');
@@ -1060,15 +1063,23 @@ export default function Portal({ user }: PortalProps) {
                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.staffDirectoryTitle}</h3>
                 <p className="text-xs text-slate-500">{t.staffDirectoryDesc}</p>
               </div>
-              <div className="w-full md:w-64 relative">
-                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input 
-                  type="text" 
-                  placeholder={t.searchDirectory}
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:outline-none"
-                  value={filter}
-                  onChange={(e) => setFilter(e.target.value)}
-                />
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+                <button
+                  onClick={() => setIsEnrollModalOpen(true)}
+                  className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                >
+                  <UserPlus size={14} /> {t.enrollmentSetup}
+                </button>
+                <div className="w-full md:w-64 relative">
+                  <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input 
+                    type="text" 
+                    placeholder={t.searchDirectory}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm focus:outline-none"
+                    value={filter}
+                    onChange={(e) => setFilter(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1159,6 +1170,15 @@ export default function Portal({ user }: PortalProps) {
             onClose={() => setIsApplyModalOpen(false)} 
             allUsers={allUsers}
             leaves={leaves}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ----------------- MODAL: ENROLL NEW PROFILE ----------------- */}
+      <AnimatePresence>
+        {isEnrollModalOpen && (
+          <EnrollModal 
+            onClose={() => setIsEnrollModalOpen(false)} 
           />
         )}
       </AnimatePresence>

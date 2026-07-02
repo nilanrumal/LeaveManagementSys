@@ -359,51 +359,7 @@ export default function App() {
                   <GraduationCap size={32} className="text-orange-500 animate-pulse" />
                   <span className="font-sans font-black text-2xl tracking-wider text-slate-800">{t.jaffnaUniversity}</span>
                 </div>
-                <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mb-10">
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{t.enrollmentSetup}</span>
-                  <div className="flex flex-wrap gap-3 justify-center">
-                    <button
-                      onClick={() => {
-                        setInitialRole('employee');
-                        setAuthMode('register');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                    >
-                      <User size={14} /> {t.createStaffProfile}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setInitialRole('hod');
-                        setAuthMode('register');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="bg-orange-100 text-orange-700 hover:bg-orange-200 border border-orange-300 px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                    >
-                      <User size={14} /> {t.createHodProfile}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setInitialRole('ceo');
-                        setAuthMode('register');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                    >
-                      <User size={14} /> {t.createCeoProfile}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setInitialRole('admin');
-                        setAuthMode('register');
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-                    >
-                      <ShieldCheck size={14} /> {t.createAdminProfile}
-                    </button>
-                  </div>
-                </div>
+
 
                <p className="text-slate-400 text-xs max-w-xl mx-auto leading-relaxed mb-8">
                  {t.copyright}
