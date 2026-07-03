@@ -26,7 +26,7 @@ import {
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth';
-import { userService } from './services/db';
+import { userService, systemService } from './services/db';
 import { UserProfile, UserRole } from './types';
 import Portal from './components/Portal';
 
@@ -170,13 +170,22 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 
 const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
   const { t } = useContext(LanguageContext);
+  const [sliderImage, setSliderImage] = useState<string>("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+
+  useEffect(() => {
+    const unsubscribe = systemService.listenSliderImage((url) => {
+      setSliderImage(url);
+    });
+    return () => unsubscribe();
+  }, []);
+
   return (
     <section className="relative h-[85vh] flex items-center bg-navy-950 overflow-hidden">
       <div className="absolute inset-0 z-0">
         <img 
-          src="https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop" 
+          src={sliderImage} 
           alt="University" 
-          className="w-full h-full object-cover opacity-40 scale-105"
+          className="w-full h-full object-cover opacity-40 scale-105 transition-all duration-700"
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/40 to-transparent" />

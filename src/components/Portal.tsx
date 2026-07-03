@@ -31,7 +31,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
-import { leaveService, userService } from '../services/db';
+import { leaveService, userService, systemService } from '../services/db';
 import { LeaveRequest, UserProfile, LeaveType, UserRole } from '../types';
 import { format } from 'date-fns';
 import { LanguageContext } from '../App';
@@ -69,6 +69,22 @@ export default function Portal({ user }: PortalProps) {
   // Leave approval comment input
   const [showCommentModal, setShowCommentModal] = useState<{ id: string, status: 'Approved' | 'Rejected' } | null>(null);
   const [commentText, setCommentText] = useState('');
+
+  // Slider image state
+  const [sliderImageUrl, setSliderImageUrl] = useState('');
+  const [sliderImageInput, setSliderImageInput] = useState('');
+  const [savingSliderImage, setSavingSliderImage] = useState(false);
+  const [saveSliderSuccess, setSaveSliderSuccess] = useState(false);
+
+  useEffect(() => {
+    if (user.role === 'admin') {
+      const unsubscribe = systemService.listenSliderImage((url) => {
+        setSliderImageUrl(url);
+        setSliderImageInput(url);
+      });
+      return () => unsubscribe();
+    }
+  }, [user.role]);
 
   // Setup reactive streams
   useEffect(() => {
@@ -565,6 +581,21 @@ export default function Portal({ user }: PortalProps) {
       setCommentText('');
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleSaveSliderImage = async () => {
+    if (!sliderImageInput.trim()) return;
+    setSavingSliderImage(true);
+    setSaveSliderSuccess(false);
+    try {
+      await systemService.updateSliderImage(sliderImageInput.trim());
+      setSaveSliderSuccess(true);
+      setTimeout(() => setSaveSliderSuccess(false), 3000);
+    } catch (e) {
+      console.error('Error saving slider image:', e);
+    } finally {
+      setSavingSliderImage(false);
     }
   };
 
@@ -1434,7 +1465,8 @@ export default function Portal({ user }: PortalProps) {
 
         {/* -------------------- TAB: ADMIN (STAFF DIRECTORY) -------------------- */}
         {activeTab === 'admin' && user.role === 'admin' && (
-          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
+          <div className="space-y-8 animate-fade-in">
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <div>
                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.staffDirectoryTitle}</h3>
@@ -1535,6 +1567,120 @@ export default function Portal({ user }: PortalProps) {
                 </tbody>
               </table>
             </div>
+          </div>
+
+          {/* Slider Area Background Cover Settings */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200/60 p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-orange-50 p-2 rounded-xl text-orange-500">
+                <Calendar size={20} />
+              </div>
+              <div>
+                <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800 font-bold">Slider Background Image Cover</h3>
+                <p className="text-xs text-slate-500 font-medium">Update the background image displayed behind "Jaffna University Sri Lanka" in the landing page hero slider section.</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-6">
+              {/* Left column: Input and controls */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">Cover Image URL</label>
+                  <input 
+                    type="text" 
+                    placeholder="https://images.unsplash.com/photo-..." 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-orange-500 font-mono text-xs"
+                    value={sliderImageInput}
+                    onChange={(e) => setSliderImageInput(e.target.value)}
+                  />
+                </div>
+
+                {/* Preset Campus Images */}
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Or choose a pre-selected university cover:</span>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      {
+                        name: "Academic Library",
+                        url: "https://images.unsplash.com/photo-1497633762265-9d179a990aa6?q=80&w=1000&auto=format&fit=crop"
+                      },
+                      {
+                        name: "Campus Gate",
+                        url: "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=1000&auto=format&fit=crop"
+                      },
+                      {
+                        name: "Study Hall",
+                        url: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=1000&auto=format&fit=crop"
+                      }
+                    ].map((preset) => (
+                      <button
+                        key={preset.url}
+                        type="button"
+                        onClick={() => setSliderImageInput(preset.url)}
+                        className={`group relative h-16 rounded-xl overflow-hidden border-2 transition-all ${sliderImageInput === preset.url ? 'border-orange-500 shadow-md ring-2 ring-orange-500/20' : 'border-slate-200 hover:border-slate-300'}`}
+                      >
+                        <img src={preset.url} alt={preset.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+                        <div className="absolute inset-0 bg-black/40 flex items-end p-1.5">
+                          <span className="text-[9px] font-semibold text-white truncate w-full text-left">{preset.name}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 pt-2">
+                  <button
+                    disabled={savingSliderImage || !sliderImageInput.trim()}
+                    onClick={handleSaveSliderImage}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
+                  >
+                    {savingSliderImage ? (
+                      <>
+                        <Loader2 size={14} className="animate-spin" /> Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} /> Save Cover Image
+                      </>
+                    )}
+                  </button>
+
+                  {saveSliderSuccess && (
+                    <span className="text-xs font-bold text-green-600 flex items-center gap-1 animate-fade-in">
+                      <CheckCircle2 size={14} className="text-green-600" /> Successfully updated and published cover!
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Right column: Live Interactive preview */}
+              <div className="relative rounded-2xl overflow-hidden bg-navy-950 border border-slate-200 aspect-[21/9] flex items-center p-6 shadow-inner group">
+                <div className="absolute inset-0 z-0">
+                  <img 
+                    src={sliderImageInput || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop"} 
+                    alt="Slider Preview" 
+                    className="w-full h-full object-cover opacity-40 scale-105 transition-all duration-300 group-hover:scale-100"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/20 to-transparent" />
+                </div>
+                <div className="relative z-10 w-full">
+                  <div className="inline-block px-2 py-0.5 bg-amber-500/10 text-amber-500 rounded-full text-[8px] font-bold uppercase tracking-widest mb-2 border border-amber-500/20">
+                    Academic Excellence
+                  </div>
+                  <h1 className="text-base sm:text-lg font-sans font-black text-white leading-tight uppercase tracking-tight">
+                    Jaffna University Sri Lanka
+                  </h1>
+                  <p className="text-[10px] text-slate-200 mt-1 max-w-[80%] font-medium opacity-80">
+                    Empowering Minds, Shaping the Future
+                  </p>
+                </div>
+                <div className="absolute top-3 right-3 bg-navy-900/80 backdrop-blur-sm text-[9px] text-slate-300 font-mono px-2.5 py-1 rounded-full border border-white/10">
+                  Live Preview
+                </div>
+              </div>
+            </div>
+          </div>
           </div>
         )}
       </main>

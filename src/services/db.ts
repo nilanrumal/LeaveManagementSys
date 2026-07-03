@@ -214,3 +214,50 @@ export const leaveService = {
     }
   }
 };
+
+export const systemService = {
+  async getSliderImage(): Promise<string> {
+    try {
+      const docRef = doc(db, 'settings', 'general');
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && typeof data.sliderImage === 'string') {
+          return data.sliderImage;
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching slider image:', e);
+    }
+    return "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop";
+  },
+
+  async updateSliderImage(imageUrl: string): Promise<void> {
+    const path = 'settings/general';
+    try {
+      await setDoc(doc(db, 'settings', 'general'), {
+        sliderImage: imageUrl,
+        updatedAt: Date.now()
+      }, { merge: true });
+    } catch (e) {
+      handleFirestoreError(e, OperationTypeLocal.WRITE, path);
+    }
+  },
+
+  listenSliderImage(callback: (imageUrl: string) => void) {
+    const docRef = doc(db, 'settings', 'general');
+    return onSnapshot(docRef, (snap) => {
+      if (snap.exists()) {
+        const data = snap.data();
+        if (data && typeof data.sliderImage === 'string') {
+          callback(data.sliderImage);
+          return;
+        }
+      }
+      callback("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+    }, (e) => {
+      console.error('Error listening to slider image:', e);
+      callback("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+    });
+  }
+};
