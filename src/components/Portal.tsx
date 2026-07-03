@@ -1341,7 +1341,7 @@ export default function Portal({ user }: PortalProps) {
             </p>
           </div>
           
-          {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
+          {['employee', 'staff', 'hod'].includes(user.role) && (
             <button 
               onClick={() => setIsApplyModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
