@@ -623,7 +623,7 @@ export default function Portal({ user }: PortalProps) {
           )}
 
           {/* Leave History / Total lists */}
-          {(user.role === 'employee' || user.role === 'admin') && (
+          {['employee', 'hod', 'ceo', 'admin'].includes(user.role) && (
             <SidebarLink 
               icon={Clock} 
               label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
@@ -702,7 +702,7 @@ export default function Portal({ user }: PortalProps) {
             </p>
           </div>
           
-          {user.role === 'employee' && (
+          {['employee', 'hod', 'ceo'].includes(user.role) && (
             <button 
               onClick={() => setIsApplyModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
@@ -716,8 +716,8 @@ export default function Portal({ user }: PortalProps) {
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
             
-            {/* Quick stats for employees only */}
-            {user.role === 'employee' && (
+            {/* Quick stats for employees, HODs, and CEOs */}
+            {['employee', 'hod', 'ceo'].includes(user.role) && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
                 <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
@@ -762,8 +762,8 @@ export default function Portal({ user }: PortalProps) {
               </div>
             </div>
 
-            {/* Recent list summary for employees only */}
-            {user.role === 'employee' && (
+            {/* Recent list summary for employees, HODs, and CEOs */}
+            {['employee', 'hod', 'ceo'].includes(user.role) && (
               <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                  <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">{t.myRecentLeaves}</h3>
                  {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
