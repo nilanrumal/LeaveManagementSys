@@ -60,6 +60,8 @@ export default function Portal({ user }: PortalProps) {
   const [reportDeptFilter, setReportDeptFilter] = useState<string>(user?.department || 'All');
   const [reportEmployeeFilter, setReportEmployeeFilter] = useState<string>('All');
   const [ceoPdfFilter, setCeoPdfFilter] = useState<'1m' | '3m' | '6m' | '1y'>('3m');
+  const [hodPdfFilter, setHodPdfFilter] = useState<'1m' | '3m' | '6m' | '1y'>('3m');
+  const [staffPdfFilter, setStaffPdfFilter] = useState<'1m' | '3m' | '6m' | '1y'>('3m');
 
   // Admin Profile Management States
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
@@ -202,7 +204,7 @@ export default function Portal({ user }: PortalProps) {
     const matchesStatus = statusFilter === 'All' || l.status === statusFilter;
     
     // Permission filters:
-    if (user.role === 'employee') {
+    if (user.role === 'employee' || user.role === 'staff') {
       // Employees only view their own leave requests
       return l.employeeId === user.uid && matchesSearch && matchesStatus;
     } else if (user.role === 'hod') {
@@ -210,9 +212,9 @@ export default function Portal({ user }: PortalProps) {
       const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
       if (activeTab === 'approvals') {
         const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
-        // HOD approves 'employee' role leaves only in their department.
+        // HOD approves 'employee' or 'staff' role leaves only in their department.
         // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
-        const isEmployeeOrLoading = !leaveCreator || leaveCreator.role === 'employee';
+        const isEmployeeOrLoading = !leaveCreator || leaveCreator.role === 'employee' || leaveCreator.role === 'staff';
         return l.employeeId !== user.uid && isEmployeeOrLoading && isSameDept && matchesSearch && matchesStatus;
       }
       return isSameDept && matchesSearch && matchesStatus;
@@ -241,6 +243,612 @@ export default function Portal({ user }: PortalProps) {
     used: leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
     pending: leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending').length,
     remaining: user.totalLeaveDays - leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
+  };
+
+  const handleDownloadHODReport = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const now = Date.now();
+    const rangeDays = hodPdfFilter === '1m' ? 30 : hodPdfFilter === '3m' ? 90 : hodPdfFilter === '6m' ? 180 : 365;
+    
+    // HOD only reports on leaves in their department
+    const reportLeaves = leaves.filter(l => {
+      const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
+      if (!isSameDept) return false;
+      
+      const leaveTime = new Date(l.startDate).getTime();
+      const daysDiff = (now - leaveTime) / (1000 * 60 * 60 * 24);
+      return Math.abs(daysDiff) <= rangeDays;
+    });
+
+    // Sort leaves by start date descending
+    reportLeaves.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+    let approvedDays = 0;
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+    const typeCounts: Record<string, number> = {
+      Annual: 0,
+      Sick: 0,
+      Personal: 0,
+      'Maternity/Paternity': 0,
+      Study: 0
+    };
+
+    reportLeaves.forEach(l => {
+      const duration = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (l.status === 'Approved') {
+        approvedDays += duration;
+        approvedCount++;
+      } else if (l.status === 'Pending') {
+        pendingCount++;
+      } else if (l.status === 'Rejected') {
+        rejectedCount++;
+      }
+      if (typeCounts[l.type] !== undefined) {
+        typeCounts[l.type]++;
+      }
+    });
+
+    const totalRequests = reportLeaves.length;
+    const approvalRate = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 100;
+
+    // Draw PDF content
+    doc.setFillColor(249, 115, 22); // Orange
+    doc.rect(14, 15, 182, 1.5, 'F');
+
+    // Title Block
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text('JAFFNA UNIVERSITY', 14, 25);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(71, 85, 105);
+    doc.text(`HOD - ${user.department?.toUpperCase() || 'DEPARTMENT'} LEAVE SUMMARY REPORT`, 14, 31);
+
+    // Meta Info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    const periodLabel = {
+      '1m': '1 Month (Past 30 Days)',
+      '3m': '3 Months (Past 90 Days)',
+      '6m': '6 Months (Past 180 Days)',
+      '1y': '1 Year (Past 365 Days)'
+    }[hodPdfFilter];
+    doc.text(`Report Timeframe: ${periodLabel}`, 14, 37);
+    doc.text(`Generated On: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} (UTC)`, 14, 41);
+
+    // Right-aligned header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(249, 115, 22);
+    doc.text('DEPARTMENTAL LEAVE AUDIT', 196 - doc.getTextWidth('DEPARTMENTAL LEAVE AUDIT'), 25);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    const viewerText = `Department HOD: ${user.name}`;
+    doc.text(viewerText, 196 - doc.getTextWidth(viewerText), 31);
+
+    // Divider
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(14, 45, 196, 45);
+
+    // KPI Blocks
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, 49, 42, 22, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVED DAYS', 18, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(249, 115, 22);
+    doc.text(`${approvedDays} Days`, 18, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(60, 49, 42, 22, 'F');
+    doc.rect(60, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVAL RATE', 64, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129);
+    doc.text(`${approvalRate}%`, 64, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(106, 49, 42, 22, 'F');
+    doc.rect(106, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('PENDING PIPELINE', 110, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text(`${pendingCount} Apps`, 110, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(152, 49, 44, 22, 'F');
+    doc.rect(152, 49, 44, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('TOTAL APPLICATIONS', 156, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`${totalRequests} Records`, 156, 64);
+
+    // Distribution
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('LEAVE CATEGORY DISTRIBUTION', 14, 79);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Distribution and counts of department requested leave profiles within this selected period.', 14, 83);
+
+    let chartY = 88;
+    Object.entries(typeCounts).forEach(([type, count]) => {
+      const percentage = totalRequests > 0 ? count / totalRequests : 0;
+      const barMaxWidth = 100;
+      const barWidth = percentage * barMaxWidth;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${type} Leave`, 14, chartY + 4);
+
+      // Bar BG
+      doc.setFillColor(241, 245, 249);
+      doc.rect(55, chartY + 1, barMaxWidth, 4, 'F');
+
+      if (barWidth > 0) {
+        doc.setFillColor(249, 115, 22);
+        doc.rect(55, chartY + 1, barWidth, 4, 'F');
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${count} (${Math.round(percentage * 100)}%)`, 160, chartY + 4);
+
+      chartY += 7;
+    });
+
+    let tableY = chartY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('DETAILED DEPARTMENTAL LEAVE LEDGER', 14, tableY);
+
+    tableY += 5;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(14, tableY, 182, 8, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Employee', 16, tableY + 5.5);
+    doc.text('Department', 55, tableY + 5.5);
+    doc.text('Dates & Total Days', 85, tableY + 5.5);
+    doc.text('Type', 130, tableY + 5.5);
+    doc.text('Status', 152, tableY + 5.5);
+    doc.text('Reason', 170, tableY + 5.5);
+
+    let rowY = tableY + 8;
+    let pageNum = 1;
+
+    if (reportLeaves.length === 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('No transaction records logged in this timeframe.', 14, rowY + 8);
+    } else {
+      reportLeaves.forEach((l) => {
+        if (rowY > 265) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`Jaffna University Staff Leave Ledger • HOD Departmental Report • Page ${pageNum}`, 14, 287);
+          doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+          doc.addPage();
+          pageNum++;
+          
+          rowY = 20;
+          doc.setFillColor(249, 115, 22);
+          doc.rect(14, rowY, 182, 1, 'F');
+          
+          rowY += 3;
+          doc.setFillColor(15, 23, 42);
+          doc.rect(14, rowY, 182, 8, 'F');
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(255, 255, 255);
+          doc.text('Employee', 16, rowY + 5.5);
+          doc.text('Department', 55, rowY + 5.5);
+          doc.text('Dates & Total Days', 85, rowY + 5.5);
+          doc.text('Type', 130, rowY + 5.5);
+          doc.text('Status', 152, rowY + 5.5);
+          doc.text('Reason', 170, rowY + 5.5);
+
+          rowY += 8;
+        }
+
+        doc.setFillColor(rowY % 20 === 0 ? 255 : 248, rowY % 20 === 0 ? 255 : 250, rowY % 20 === 0 ? 255 : 252);
+        doc.rect(14, rowY, 182, 10, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        
+        const empText = l.employeeName.length > 20 ? l.employeeName.substring(0, 18) + '..' : l.employeeName;
+        doc.text(empText, 16, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`#${l.employeeNo || 'No ID'}`, 16, rowY + 9);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(l.department, 55, rowY + 6.5);
+
+        const datesText = `${format(new Date(l.startDate), 'MMM d')} - ${format(new Date(l.endDate), 'MMM d, yy')}`;
+        const daysCount = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(30, 41, 59);
+        doc.text(datesText, 85, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(249, 115, 22);
+        doc.text(`${daysCount} ${daysCount === 1 ? 'day' : 'days'} total`, 85, rowY + 9);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(l.type, 130, rowY + 6.5);
+
+        let statusColor = [71, 85, 105];
+        if (l.status === 'Approved') statusColor = [16, 185, 129];
+        else if (l.status === 'Rejected') statusColor = [239, 68, 68];
+        else if (l.status === 'Pending') statusColor = [245, 158, 11];
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.text(l.status, 152, rowY + 6.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        const reasonText = l.reason && l.reason.length > 18 ? l.reason.substring(0, 16) + '...' : (l.reason || 'No Reason');
+        doc.text(reasonText, 170, rowY + 6.5);
+
+        rowY += 10;
+      });
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Jaffna University Staff Leave Ledger • HOD Departmental Report • Page ${pageNum}`, 14, 287);
+    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+    doc.save(`JaffnaUni_HOD_${user.department || 'Dept'}_Leave_Summary_Report_${hodPdfFilter}.pdf`);
+  };
+
+  const handleDownloadStaffReport = () => {
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const now = Date.now();
+    const rangeDays = staffPdfFilter === '1m' ? 30 : staffPdfFilter === '3m' ? 90 : staffPdfFilter === '6m' ? 180 : 365;
+    
+    // Only user's own leaves
+    const reportLeaves = leaves.filter(l => {
+      if (l.employeeId !== user.uid) return false;
+      const leaveTime = new Date(l.startDate).getTime();
+      const daysDiff = (now - leaveTime) / (1000 * 60 * 60 * 24);
+      return Math.abs(daysDiff) <= rangeDays;
+    });
+
+    // Sort leaves by start date descending
+    reportLeaves.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+
+    let approvedDays = 0;
+    let approvedCount = 0;
+    let pendingCount = 0;
+    let rejectedCount = 0;
+    const typeCounts: Record<string, number> = {
+      Annual: 0,
+      Sick: 0,
+      Personal: 0,
+      'Maternity/Paternity': 0,
+      Study: 0
+    };
+
+    reportLeaves.forEach(l => {
+      const duration = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+      if (l.status === 'Approved') {
+        approvedDays += duration;
+        approvedCount++;
+      } else if (l.status === 'Pending') {
+        pendingCount++;
+      } else if (l.status === 'Rejected') {
+        rejectedCount++;
+      }
+      if (typeCounts[l.type] !== undefined) {
+        typeCounts[l.type]++;
+      }
+    });
+
+    const totalRequests = reportLeaves.length;
+    const approvalRate = totalRequests > 0 ? Math.round((approvedCount / totalRequests) * 100) : 100;
+
+    // Draw PDF content
+    doc.setFillColor(249, 115, 22); // Orange
+    doc.rect(14, 15, 182, 1.5, 'F');
+
+    // Title Block
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(18);
+    doc.setTextColor(15, 23, 42);
+    doc.text('JAFFNA UNIVERSITY', 14, 25);
+    
+    doc.setFontSize(13);
+    doc.setTextColor(71, 85, 105);
+    doc.text('STAFF PORTAL - PERSONAL LEAVE SUMMARY REPORT', 14, 31);
+
+    // Meta Info
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    const periodLabel = {
+      '1m': '1 Month (Past 30 Days)',
+      '3m': '3 Months (Past 90 Days)',
+      '6m': '6 Months (Past 180 Days)',
+      '1y': '1 Year (Past 365 Days)'
+    }[staffPdfFilter];
+    doc.text(`Report Timeframe: ${periodLabel}`, 14, 37);
+    doc.text(`Generated On: ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} (UTC)`, 14, 41);
+
+    // Right-aligned header
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.setTextColor(249, 115, 22);
+    doc.text('PERSONAL LEAVE LEDGER', 196 - doc.getTextWidth('PERSONAL LEAVE LEDGER'), 25);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    const viewerText = `Staff: ${user.name} (#${user.employeeNo || 'No ID'})`;
+    doc.text(viewerText, 196 - doc.getTextWidth(viewerText), 31);
+
+    // Divider
+    doc.setDrawColor(226, 232, 240);
+    doc.setLineWidth(0.3);
+    doc.line(14, 45, 196, 45);
+
+    // KPI Blocks
+    doc.setFillColor(248, 250, 252);
+    doc.rect(14, 49, 42, 22, 'F');
+    doc.setDrawColor(226, 232, 240);
+    doc.rect(14, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVED DAYS', 18, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(249, 115, 22);
+    doc.text(`${approvedDays} Days`, 18, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(60, 49, 42, 22, 'F');
+    doc.rect(60, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('APPROVAL RATE', 64, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(16, 185, 129);
+    doc.text(`${approvalRate}%`, 64, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(106, 49, 42, 22, 'F');
+    doc.rect(106, 49, 42, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('PENDING PIPELINE', 110, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text(`${pendingCount} Apps`, 110, 64);
+
+    doc.setFillColor(248, 250, 252);
+    doc.rect(152, 49, 44, 22, 'F');
+    doc.rect(152, 49, 44, 22, 'S');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('TOTAL APPLICATIONS', 156, 55);
+    doc.setFontSize(16);
+    doc.setTextColor(30, 41, 59);
+    doc.text(`${totalRequests} Records`, 156, 64);
+
+    // Distribution
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('LEAVE CATEGORY DISTRIBUTION', 14, 79);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text('Distribution and counts of personal requested leave profiles within this selected period.', 14, 83);
+
+    let chartY = 88;
+    Object.entries(typeCounts).forEach(([type, count]) => {
+      const percentage = totalRequests > 0 ? count / totalRequests : 0;
+      const barMaxWidth = 100;
+      const barWidth = percentage * barMaxWidth;
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+      doc.setTextColor(51, 65, 85);
+      doc.text(`${type} Leave`, 14, chartY + 4);
+
+      // Bar BG
+      doc.setFillColor(241, 245, 249);
+      doc.rect(55, chartY + 1, barMaxWidth, 4, 'F');
+
+      if (barWidth > 0) {
+        doc.setFillColor(249, 115, 22);
+        doc.rect(55, chartY + 1, barWidth, 4, 'F');
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 41, 59);
+      doc.text(`${count} (${Math.round(percentage * 100)}%)`, 160, chartY + 4);
+
+      chartY += 7;
+    });
+
+    let tableY = chartY + 10;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(15, 23, 42);
+    doc.text('PERSONAL LEAVE LEDGER', 14, tableY);
+
+    tableY += 5;
+    doc.setFillColor(15, 23, 42);
+    doc.rect(14, tableY, 182, 8, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(255, 255, 255);
+    doc.text('Employee', 16, tableY + 5.5);
+    doc.text('Department', 55, tableY + 5.5);
+    doc.text('Dates & Total Days', 85, tableY + 5.5);
+    doc.text('Type', 130, tableY + 5.5);
+    doc.text('Status', 152, tableY + 5.5);
+    doc.text('Reason', 170, tableY + 5.5);
+
+    let rowY = tableY + 8;
+    let pageNum = 1;
+
+    if (reportLeaves.length === 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(100, 116, 139);
+      doc.text('No transaction records logged in this timeframe.', 14, rowY + 8);
+    } else {
+      reportLeaves.forEach((l) => {
+        if (rowY > 265) {
+          doc.setFont('helvetica', 'normal');
+          doc.setFontSize(7);
+          doc.setTextColor(148, 163, 184);
+          doc.text(`Jaffna University Staff Leave Ledger • Personal Staff Report • Page ${pageNum}`, 14, 287);
+          doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+          doc.addPage();
+          pageNum++;
+          
+          rowY = 20;
+          doc.setFillColor(249, 115, 22);
+          doc.rect(14, rowY, 182, 1, 'F');
+          
+          rowY += 3;
+          doc.setFillColor(15, 23, 42);
+          doc.rect(14, rowY, 182, 8, 'F');
+
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(8);
+          doc.setTextColor(255, 255, 255);
+          doc.text('Employee', 16, rowY + 5.5);
+          doc.text('Department', 55, rowY + 5.5);
+          doc.text('Dates & Total Days', 85, rowY + 5.5);
+          doc.text('Type', 130, rowY + 5.5);
+          doc.text('Status', 152, rowY + 5.5);
+          doc.text('Reason', 170, rowY + 5.5);
+
+          rowY += 8;
+        }
+
+        doc.setFillColor(rowY % 20 === 0 ? 255 : 248, rowY % 20 === 0 ? 255 : 250, rowY % 20 === 0 ? 255 : 252);
+        doc.rect(14, rowY, 182, 10, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(15, 23, 42);
+        
+        const empText = l.employeeName.length > 20 ? l.employeeName.substring(0, 18) + '..' : l.employeeName;
+        doc.text(empText, 16, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(6.5);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`#${l.employeeNo || 'No ID'}`, 16, rowY + 9);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7.5);
+        doc.setTextColor(51, 65, 85);
+        doc.text(l.department, 55, rowY + 6.5);
+
+        const datesText = `${format(new Date(l.startDate), 'MMM d')} - ${format(new Date(l.endDate), 'MMM d, yy')}`;
+        const daysCount = Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(30, 41, 59);
+        doc.text(datesText, 85, rowY + 6);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(249, 115, 22);
+        doc.text(`${daysCount} ${daysCount === 1 ? 'day' : 'days'} total`, 85, rowY + 9);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(71, 85, 105);
+        doc.text(l.type, 130, rowY + 6.5);
+
+        let statusColor = [71, 85, 105];
+        if (l.status === 'Approved') statusColor = [16, 185, 129];
+        else if (l.status === 'Rejected') statusColor = [239, 68, 68];
+        else if (l.status === 'Pending') statusColor = [245, 158, 11];
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7.5);
+        doc.setTextColor(statusColor[0], statusColor[1], statusColor[2]);
+        doc.text(l.status, 152, rowY + 6.5);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(100, 116, 139);
+        const reasonText = l.reason && l.reason.length > 18 ? l.reason.substring(0, 16) + '...' : (l.reason || 'No Reason');
+        doc.text(reasonText, 170, rowY + 6.5);
+
+        rowY += 10;
+      });
+    }
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184);
+    doc.text(`Jaffna University Staff Leave Ledger • Personal Staff Report • Page ${pageNum}`, 14, 287);
+    doc.text(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`, 196 - doc.getTextWidth(`Generated: ${format(new Date(), 'yyyy-MM-dd')}`), 287);
+
+    doc.save(`JaffnaUni_Staff_${user.name.replace(/\s+/g, '_')}_Leave_Summary_Report_${staffPdfFilter}.pdf`);
   };
 
   const handleDownloadCEOReport = () => {
@@ -644,7 +1252,7 @@ export default function Portal({ user }: PortalProps) {
           )}
 
           {/* Leave Analytics & Reports Tab */}
-          {(user.role === 'ceo' || user.role === 'admin') && (
+          {['employee', 'staff', 'hod', 'ceo', 'admin'].includes(user.role) && (
             <SidebarLink
               icon={BarChart3}
               label={t.leaveReports}
@@ -654,7 +1262,7 @@ export default function Portal({ user }: PortalProps) {
           )}
 
           {/* Leave History / Total lists */}
-          {['employee', 'hod', 'ceo', 'admin'].includes(user.role) && (
+          {['employee', 'staff', 'hod', 'ceo', 'admin'].includes(user.role) && (
             <SidebarLink 
               icon={Clock} 
               label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
@@ -733,7 +1341,7 @@ export default function Portal({ user }: PortalProps) {
             </p>
           </div>
           
-          {['employee', 'hod', 'ceo'].includes(user.role) && (
+          {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
             <button 
               onClick={() => setIsApplyModalOpen(true)}
               className="bg-orange-500 hover:bg-orange-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 shadow-md hover:shadow-orange-500/10 transition-all active:scale-95 text-xs cursor-pointer"
@@ -748,7 +1356,7 @@ export default function Portal({ user }: PortalProps) {
           <div className="space-y-8">
             
             {/* Quick stats for employees, HODs, and CEOs */}
-            {['employee', 'hod', 'ceo'].includes(user.role) && (
+            {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
                 <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
@@ -778,7 +1386,7 @@ export default function Portal({ user }: PortalProps) {
                  <ProfileDisplayField label={t.faculty} value={user.department} />
                  <ProfileDisplayField 
                    label={t.accessTier} 
-                   value={user.role === 'employee' ? t.staffMember : user.role === 'hod' ? t.hodRole : user.role === 'ceo' ? t.ceoRole : t.adminRole} 
+                   value={(user.role === 'employee' || user.role === 'staff') ? t.staffMember : user.role === 'hod' ? t.hodRole : user.role === 'ceo' ? t.ceoRole : t.adminRole} 
                    badge={user.role} 
                  />
                  <ProfileDisplayField label={t.totalLeaveAllowance} value={`${user.totalLeaveDays} ${t.days}`} />
@@ -794,7 +1402,7 @@ export default function Portal({ user }: PortalProps) {
             </div>
 
             {/* Recent list summary for employees, HODs, and CEOs */}
-            {['employee', 'hod', 'ceo'].includes(user.role) && (
+            {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
               <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
                  <h3 className="font-bold text-slate-800 mb-4 font-sans text-xs uppercase tracking-wider">{t.myRecentLeaves}</h3>
                  {leaves.filter(l => l.employeeId === user.uid).length > 0 ? (
@@ -945,8 +1553,8 @@ export default function Portal({ user }: PortalProps) {
           </div>
         )}
 
-        {/* -------------------- TAB: REPORTS (CEO & ADMIN) -------------------- */}
-        {activeTab === 'reports' && (user.role === 'ceo' || user.role === 'admin') && (
+        {/* -------------------- TAB: REPORTS -------------------- */}
+        {activeTab === 'reports' && (
           <div className="space-y-8 print:p-0">
              {/* CEO Executive Report Center */}
              {user.role === 'ceo' && (
@@ -1010,6 +1618,118 @@ export default function Portal({ user }: PortalProps) {
                 </div>
              )}
 
+             {/* HOD Departmental Report Center */}
+             {user.role === 'hod' && (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
+                   {/* Glowing decorative gradient */}
+                   <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                   <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                   
+                   <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                      <div className="space-y-2">
+                         <div className="inline-flex items-center gap-2 bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-xl border border-orange-500/20 text-[10px] font-mono font-bold uppercase tracking-wider">
+                            Department Head
+                         </div>
+                         <h3 className="font-sans font-black text-lg tracking-tight">HOD Departmental Leave Summary Report</h3>
+                         <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                            Generate and download a secure departmental PDF ledger summarizing leave requests and team coverage metrics for the {user.department} Faculty.
+                         </p>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+                         <div>
+                            <span className="block text-[9px] uppercase font-mono font-bold tracking-wider text-slate-400 mb-1.5">Select Timeframe</span>
+                            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                               {([['1m', '1 Month'], ['3m', '3 Months'], ['6m', '6 Months'], ['1y', '12 Months']] as const).map(([period, label]) => {
+                                  const active = hodPdfFilter === period;
+                                  return (
+                                     <button
+                                       key={period}
+                                       type="button"
+                                       onClick={() => setHodPdfFilter(period)}
+                                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          active 
+                                            ? 'bg-orange-500 text-white shadow-md' 
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                       }`}
+                                     >
+                                        {label}
+                                     </button>
+                                  );
+                               })}
+                            </div>
+                         </div>
+                         
+                         <div className="flex items-end pt-3 sm:pt-0">
+                            <button
+                              type="button"
+                              onClick={handleDownloadHODReport}
+                              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                            >
+                               <Download size={14} /> Download PDF Report
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             )}
+
+             {/* Staff Personal Report Center */}
+             {(user.role === 'employee' || user.role === 'staff') && (
+                <div className="bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-white rounded-3xl p-8 border border-slate-800 shadow-xl relative overflow-hidden">
+                   {/* Glowing decorative gradient */}
+                   <div className="absolute top-0 right-0 w-80 h-80 bg-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+                   <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-indigo-500/5 rounded-full blur-2xl pointer-events-none" />
+                   
+                   <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                      <div className="space-y-2">
+                         <div className="inline-flex items-center gap-2 bg-orange-500/10 text-orange-400 px-3 py-1.5 rounded-xl border border-orange-500/20 text-[10px] font-mono font-bold uppercase tracking-wider">
+                            Personal Ledger
+                         </div>
+                         <h3 className="font-sans font-black text-lg tracking-tight">Staff Personal Leave Summary Report</h3>
+                         <p className="text-xs text-slate-300 max-w-xl leading-relaxed">
+                            Generate and download a secure PDF statement of your personal leave records, approved days, and remaining balances.
+                         </p>
+                      </div>
+                      
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10">
+                         <div>
+                            <span className="block text-[9px] uppercase font-mono font-bold tracking-wider text-slate-400 mb-1.5">Select Timeframe</span>
+                            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
+                               {([['1m', '1 Month'], ['3m', '3 Months'], ['6m', '6 Months'], ['1y', '12 Months']] as const).map(([period, label]) => {
+                                  const active = staffPdfFilter === period;
+                                  return (
+                                     <button
+                                       key={period}
+                                       type="button"
+                                       onClick={() => setStaffPdfFilter(period)}
+                                       className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          active 
+                                            ? 'bg-orange-500 text-white shadow-md' 
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                       }`}
+                                     >
+                                        {label}
+                                     </button>
+                                  );
+                               })}
+                            </div>
+                         </div>
+                         
+                         <div className="flex items-end pt-3 sm:pt-0">
+                            <button
+                              type="button"
+                              onClick={handleDownloadStaffReport}
+                              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs px-5 py-3 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 active:scale-95 transition-all cursor-pointer"
+                            >
+                               <Download size={14} /> Download PDF Statement
+                            </button>
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             )}
+
              {/* Report Action Panels */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
@@ -1024,7 +1744,9 @@ export default function Portal({ user }: PortalProps) {
                      <Printer size={15} /> {t.printPdfReport}
                    </button>
                 </div>
-             </div>             {/* Dynamic Multi-Section Filter Matrix */}
+             </div>
+
+             {/* Dynamic Multi-Section Filter Matrix */}
              <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
                 <div className="flex items-center gap-2 mb-2">
                    <Filter size={16} className="text-amber-500" />
@@ -1034,57 +1756,93 @@ export default function Portal({ user }: PortalProps) {
                    {/* Period filter */}
                    <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportTimeframe}</label>
-                      <select 
-                        value={reportPeriod} 
-                        onChange={(e: any) => setReportPeriod(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
-                      >
-                        <option value="1m">1 Month (Past 30 Days)</option>
-                        <option value="3m">3 Months (Past 90 Days)</option>
-                        <option value="6m">6 Months (Past 180 Days)</option>
-                        <option value="1y">1 Year (Past 365 Days)</option>
-                        <option value="all">All-Time Institutional Data</option>
-                      </select>
+                      {(user.role === 'ceo' || user.role === 'admin') ? (
+                         <select 
+                           value={reportPeriod} 
+                           onChange={(e: any) => setReportPeriod(e.target.value)}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                         >
+                           <option value="1m">1 Month (Past 30 Days)</option>
+                           <option value="3m">3 Months (Past 90 Days)</option>
+                           <option value="6m">6 Months (Past 180 Days)</option>
+                           <option value="1y">1 Year (Past 365 Days)</option>
+                           <option value="all">All-Time Institutional Data</option>
+                         </select>
+                      ) : user.role === 'hod' ? (
+                         <select 
+                           value={hodPdfFilter} 
+                           onChange={(e: any) => setHodPdfFilter(e.target.value)}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                         >
+                           <option value="1m">1 Month (Past 30 Days)</option>
+                           <option value="3m">3 Months (Past 90 Days)</option>
+                           <option value="6m">6 Months (Past 180 Days)</option>
+                           <option value="1y">12 Months (Past 365 Days)</option>
+                         </select>
+                      ) : (
+                         <select 
+                           value={staffPdfFilter} 
+                           onChange={(e: any) => setStaffPdfFilter(e.target.value)}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                         >
+                           <option value="1m">1 Month (Past 30 Days)</option>
+                           <option value="3m">3 Months (Past 90 Days)</option>
+                           <option value="6m">6 Months (Past 180 Days)</option>
+                           <option value="1y">12 Months (Past 365 Days)</option>
+                         </select>
+                      )}
                    </div>
 
                    {/* Department filter */}
                    <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportDept}</label>
-                      <select 
-                        value={reportDeptFilter} 
-                        onChange={(e) => {
-                           setReportDeptFilter(e.target.value);
-                           setReportEmployeeFilter('All');
-                        }}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
-                      >
-                        <option value="All">All Departments</option>
-                        <option value="Academic">Academic</option>
-                        <option value="Humanities">Humanities</option>
-                        <option value="Engineering">Engineering</option>
-                        <option value="Medicine">Medicine</option>
-                        <option value="Science">Science</option>
-                      </select>
+                      {(user.role === 'ceo' || user.role === 'admin') ? (
+                         <select 
+                           value={reportDeptFilter} 
+                           onChange={(e) => {
+                              setReportDeptFilter(e.target.value);
+                              setReportEmployeeFilter('All');
+                           }}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                         >
+                           <option value="All">All Departments</option>
+                           <option value="Academic">Academic</option>
+                           <option value="Humanities">Humanities</option>
+                           <option value="Engineering">Engineering</option>
+                           <option value="Medicine">Medicine</option>
+                           <option value="Science">Science</option>
+                         </select>
+                      ) : (
+                         <div className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-bold">
+                            {user.department || 'N/A'}
+                         </div>
+                      )}
                    </div>
 
                    {/* Employee filter */}
                    <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportEmployee}</label>
-                      <select 
-                        value={reportEmployeeFilter} 
-                        onChange={(e) => setReportEmployeeFilter(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
-                      >
-                        <option value="All">All Department Employees</option>
-                        {allUsers
-                          .filter(u => reportDeptFilter === 'All' || u.department === reportDeptFilter)
-                          .map(u => (
-                             <option key={u.uid} value={u.uid}>
-                               {u.name} ({u.employeeNo || 'No ID'})
-                             </option>
-                          ))
-                        }
-                      </select>
+                      {['admin', 'ceo', 'hod'].includes(user.role) ? (
+                         <select 
+                           value={reportEmployeeFilter} 
+                           onChange={(e) => setReportEmployeeFilter(e.target.value)}
+                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
+                         >
+                           <option value="All">All Department Employees</option>
+                           {allUsers
+                             .filter(u => user.role === 'hod' ? u.department === user.department : (reportDeptFilter === 'All' || u.department === reportDeptFilter))
+                             .map(u => (
+                                <option key={u.uid} value={u.uid}>
+                                  {u.name} ({u.employeeNo || 'No ID'})
+                                </option>
+                             ))
+                           }
+                         </select>
+                      ) : (
+                         <div className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-bold">
+                            {user.name} ({user.employeeNo || 'No ID'})
+                         </div>
+                      )}
                    </div>
 
                    {/* Leave Type filter */}
@@ -1109,21 +1867,36 @@ export default function Portal({ user }: PortalProps) {
              {/* COMPUTE DERIVED LEAVE STATISTICS */}
              {(() => {
                 const now = Date.now();
+                const activePeriod = (user.role === 'ceo' || user.role === 'admin')
+                   ? reportPeriod
+                   : (user.role === 'hod' ? hodPdfFilter : staffPdfFilter);
+
                 const filteredListByPeriod = leaves.filter(l => {
+                   // Role-based structural access boundaries
+                   if (user.role === 'hod') {
+                      if (l.department !== user.department) return false;
+                   } else if (user.role === 'staff' || user.role === 'employee') {
+                      if (l.employeeId !== user.uid) return false;
+                   }
+
                    // Timeframe check
-                   if (reportPeriod !== 'all') {
-                      const rangeDays = reportPeriod === '1m' ? 30 : reportPeriod === '3m' ? 90 : reportPeriod === '6m' ? 180 : 365;
+                   if (activePeriod !== 'all') {
+                      const rangeDays = activePeriod === '1m' ? 30 : activePeriod === '3m' ? 90 : activePeriod === '6m' ? 180 : 365;
                       const leaveTime = new Date(l.startDate).getTime();
                       const daysDiff = (now - leaveTime) / (1000 * 60 * 60 * 24);
                       // Include leaves around the current date window to handle mock entries flexibly
                       if (Math.abs(daysDiff) > rangeDays) return false;
                    }
 
-                   // Department check
-                   if (reportDeptFilter !== 'All' && l.department !== reportDeptFilter) return false;
+                   // Department check (only applicable for CEO/Admin, since others are restricted to their own department/id)
+                   if ((user.role === 'ceo' || user.role === 'admin') && reportDeptFilter !== 'All' && l.department !== reportDeptFilter) return false;
 
                    // Employee check
-                   if (reportEmployeeFilter !== 'All' && l.employeeId !== reportEmployeeFilter) return false;
+                   if (['admin', 'ceo', 'hod'].includes(user.role)) {
+                      if (reportEmployeeFilter !== 'All' && l.employeeId !== reportEmployeeFilter) return false;
+                   } else {
+                      if (l.employeeId !== user.uid) return false;
+                   }
 
                    // Type check
                    if (reportTypeFilter !== 'All' && l.type !== reportTypeFilter) return false;
@@ -1527,7 +2300,7 @@ export default function Portal({ user }: PortalProps) {
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${getRoleBadgeColor(usr.role)}`}>
-                            {usr.role === 'employee' ? t.staffMember : usr.role === 'hod' ? t.hodRole : usr.role === 'ceo' ? t.ceoRole : t.adminRole}
+                            {(usr.role === 'employee' || usr.role === 'staff') ? t.staffMember : usr.role === 'hod' ? t.hodRole : usr.role === 'ceo' ? t.ceoRole : t.adminRole}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold text-navy-900">

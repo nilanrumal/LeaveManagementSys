@@ -12,7 +12,7 @@ export enum OperationType {
   WRITE = 'write',
 }
 
-export type UserRole = 'employee' | 'admin' | 'hod' | 'ceo';
+export type UserRole = 'employee' | 'staff' | 'admin' | 'hod' | 'ceo';
 
 export interface UserProfile {
   uid: string;
