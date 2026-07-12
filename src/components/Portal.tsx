@@ -240,10 +240,14 @@ export default function Portal({ user }: PortalProps) {
       // Employees only view their own leave requests
       return l.employeeId === user.uid && matchesSearch && matchesStatus;
     } else if (user.role === 'hod') {
-      // HOD can see leaves in their own department
-      const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
+      // HOD can see leaves in their own department (either stored on the leave request or from the creator's current profile department)
+      const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
+      const leaveCreatorDept = leaveCreator?.department;
+      const isSameDept = 
+        (l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase()) ||
+        (leaveCreatorDept && leaveCreatorDept.trim().toLowerCase() === user.department?.trim().toLowerCase());
+
       if (activeTab === 'approvals') {
-        const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
         // HOD approves 'employee' or 'staff' role leaves only in their department.
         // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
         const isEmployeeOrLoading = !leaveCreator || leaveCreator.role === 'employee' || leaveCreator.role === 'staff';
@@ -287,9 +291,13 @@ export default function Portal({ user }: PortalProps) {
     const now = Date.now();
     const rangeDays = hodPdfFilter === '1m' ? 30 : hodPdfFilter === '3m' ? 90 : hodPdfFilter === '6m' ? 180 : 365;
     
-    // HOD only reports on leaves in their department
+    // HOD only reports on leaves in their department (checks leave request department or user's current department)
     const reportLeaves = leaves.filter(l => {
-      const isSameDept = l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase();
+      const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
+      const leaveCreatorDept = leaveCreator?.department;
+      const isSameDept = 
+        (l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase()) ||
+        (leaveCreatorDept && leaveCreatorDept.trim().toLowerCase() === user.department?.trim().toLowerCase());
       if (!isSameDept) return false;
       
       const leaveTime = new Date(l.startDate).getTime();
