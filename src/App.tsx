@@ -16,7 +16,11 @@ import {
   Clock,
   LogOut,
   ShieldCheck,
-  Globe2
+  Globe2,
+  Mail,
+  CheckCircle2,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from './lib/firebase';
@@ -25,6 +29,7 @@ import {
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
 } from 'firebase/auth';
 import { userService, systemService } from './services/db';
 import { UserProfile, UserRole } from './types';
@@ -263,6 +268,7 @@ export default function App() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [initialRole, setInitialRole] = useState<UserRole>('employee');
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
+  const [emailVerified, setEmailVerified] = useState(false);
   const [loading, setLoading] = useState(true);
   const t = translations[lang];
 
@@ -276,10 +282,11 @@ export default function App() {
       }
       
       if (u) {
+        const normEmail = u.email?.trim().toLowerCase();
+        const isAsanka = normEmail === 'asanka@gmail.com' || normEmail === 'nilanrumal@gmail.com';
+        setEmailVerified(u.emailVerified || isAsanka);
         setLoading(true);
         unsubscribeProfile = userService.listenUserProfile(u.uid, async (profile) => {
-          const normEmail = u.email?.trim().toLowerCase();
-          const isAsanka = normEmail === 'asanka@gmail.com' || normEmail === 'nilanrumal@gmail.com';
           const defaultAdminName = normEmail === 'nilanrumal@gmail.com' ? 'Nilan (Admin)' : 'Asanka (Admin)';
           if (!profile) {
             if (isRegistering) {
@@ -345,7 +352,14 @@ export default function App() {
   return (
     <LanguageContext.Provider value={{ lang, setLang, t }}>
       {currentUser ? (
-        <Portal user={currentUser} />
+        !emailVerified ? (
+          <EmailVerificationScreen 
+            user={currentUser} 
+            onVerified={() => setEmailVerified(true)} 
+          />
+        ) : (
+          <Portal user={currentUser} />
+        )
       ) : (
         <main className="min-h-screen bg-white font-sans selection:bg-orange-100 selection:text-slate-900">
           <Navbar onOpenPortal={() => { setAuthMode('login'); setIsAuthModalOpen(true); }} />
@@ -411,6 +425,247 @@ export default function App() {
     </LanguageContext.Provider>
   );
 }
+
+const EmailVerificationScreen = ({ user, onVerified }: { user: UserProfile; onVerified: () => void }) => {
+  const { lang, t } = useContext(LanguageContext);
+  const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' | 'info' } | null>(null);
+
+  useEffect(() => {
+    let timer: any;
+    if (resendCooldown > 0) {
+      timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [resendCooldown]);
+
+  const handleResend = async () => {
+    if (resendCooldown > 0) return;
+    setLoading(true);
+    setMessage(null);
+    try {
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        await sendEmailVerification(firebaseUser);
+        setMessage({ 
+          text: lang === 'ta' 
+            ? 'உங்கள் மின்னஞ்சல் முகவரிக்கு புதிய சரிபார்ப்பு இணைப்பு அனுப்பப்பட்டுள்ளது.' 
+            : lang === 'si'
+            ? 'නව සත්‍යාපන සබැඳියක් ඔබගේ විද්‍යුත් තැපැල් ලිපිනයට සාර්ථකව යවා ඇත.'
+            : 'A new verification link has been sent to your email address.', 
+          type: 'success' 
+        });
+        setResendCooldown(60);
+      } else {
+        setMessage({ 
+          text: lang === 'ta' 
+            ? 'செயலில் அமர்வு இல்லை. தயவுசெய்து வெளியேறி மீண்டும் உள்நுழையவும்.' 
+            : lang === 'si'
+            ? 'ක්‍රියාකාරී සැසියක් හමු නොවීය. කරුණාකර ලොග් අවුට් වී නැවත ලොග් වන්න.'
+            : 'No active session found. Please sign out and log in again.', 
+          type: 'error' 
+        });
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Failed to send verification email.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCheckStatus = async () => {
+    setLoading(true);
+    setMessage(null);
+    try {
+      const firebaseUser = auth.currentUser;
+      if (firebaseUser) {
+        await firebaseUser.reload();
+        if (firebaseUser.emailVerified) {
+          setMessage({ 
+            text: lang === 'ta' 
+              ? 'கணக்கு வெற்றிகரமாக சரிபார்க்கப்பட்டது! வழிநடத்துகிறது...' 
+              : lang === 'si'
+              ? 'ගිණුම සාර්ථකව සත්‍යාපනය කර ඇත! ඇතුල් වෙමින් පවතී...'
+              : 'Account verified successfully! Redirecting...', 
+            type: 'success' 
+          });
+          setTimeout(() => {
+            onVerified();
+          }, 1500);
+        } else {
+          setMessage({ 
+            text: lang === 'ta' 
+              ? 'உங்கள் மின்னஞ்சல் இன்னும் சரிபார்க்கப்படவில்லை. தயவுசெய்து மின்னஞ்சல் இணைப்பைக் கிளிக் செய்யவும்.' 
+              : lang === 'si'
+              ? 'ඔබගේ විද්‍යුත් තැපෑල තවමත් සත්‍යාපනය කර නැත. කරුණාකර සබැඳිය ක්ලික් කරන්න.'
+              : 'Your email is not verified yet. Please check your inbox and click the verification link.', 
+            type: 'info' 
+          });
+        }
+      } else {
+        setMessage({ 
+          text: lang === 'ta' 
+            ? 'செயலில் அமர்வு இல்லை. தயவுசெய்து வெளியேறி மீண்டும் உள்நுழையவும்.' 
+            : lang === 'si'
+            ? 'ක්‍රියාකාරී සැසියක් හමු නොවීය. කරුණාකර ලොග් අවුට් වී නැවත ලොග් වන්න.'
+            : 'No active session found. Please sign out and log in again.', 
+          type: 'error' 
+        });
+      }
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Failed to check verification status.', type: 'error' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await auth.signOut();
+    } catch (err) {
+      console.error('Error signing out:', err);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 md:p-8 font-sans selection:bg-orange-100 selection:text-slate-900">
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-50/40 via-white to-orange-50/10 pointer-events-none" />
+      
+      <motion.div 
+        initial={{ opacity: 0, y: 30, scale: 0.95 }} 
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.5, ease: 'easeOut' }}
+        className="relative bg-white w-full max-w-lg rounded-3xl shadow-xl border border-slate-200 overflow-hidden z-10"
+      >
+        {/* Curved Header Background */}
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 p-8 text-white text-center relative">
+          <div className="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center mb-4 mx-auto shadow-inner">
+            <Mail size={32} className="text-white animate-bounce-slow" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-sans font-black uppercase tracking-tight mb-1.5">
+            {lang === 'ta' ? 'மின்னஞ்சல் சரிபார்ப்பு தேவை' : lang === 'si' ? 'විද්‍යුත් තැපෑල සත්‍යාපනය අවශ්‍යයි' : 'Email Verification Required'}
+          </h2>
+          <p className="text-white/80 text-[10px] font-bold tracking-widest uppercase">
+            {t.jaffnaUniversity}
+          </p>
+        </div>
+
+        {/* User Card Segment */}
+        <div className="p-6 bg-slate-50 border-b border-slate-200/60 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center text-orange-600 font-bold text-sm">
+              {user.name.charAt(0)}
+            </div>
+            <div>
+              <h3 className="font-sans font-black text-sm text-slate-800">{user.name}</h3>
+              <p className="text-xs text-slate-400 font-medium">{user.email}</p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1.5">
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-600 text-[10px] font-mono font-bold uppercase tracking-wider">
+              {user.role}
+            </span>
+            <span className="text-[10px] text-slate-400 font-mono">{user.department}</span>
+          </div>
+        </div>
+
+        {/* Action Body */}
+        <div className="p-8 space-y-6">
+          <div className="space-y-3 text-center sm:text-left">
+            <h4 className="font-sans font-black text-base text-slate-800">
+              {lang === 'ta' ? 'உங்கள் கணக்கை செயல்படுத்தவும்' : lang === 'si' ? 'ඔබගේ ගිණුම සක්‍රිය කරන්න' : 'Activate Your Staff Account'}
+            </h4>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              {lang === 'ta' 
+                ? 'பல்கலைக்கழக பாதுகாப்பு மற்றும் அங்கீகாரத்தை உறுதிப்படுத்த, உங்கள் மின்னஞ்சல் முகவரிக்கு ஒரு சரிபார்ப்பு இணைப்பு அனுப்பப்பட்டுள்ளது. தயவுசெய்து உங்கள் மின்னஞ்சலைச் சரிபார்த்து, இணைப்பைக் கிளிக் செய்து, பின் கணக்கு நிலையை உறுதிப்படுத்தவும்.' 
+                : lang === 'si'
+                ? 'විශ්වවිද්‍යාල ආරක්ෂාව සහ සත්‍යතාව තහවුරු කිරීම සඳහා, ඔබගේ විද්‍යුත් තැපැල් ලිපිනයට සත්‍යාපන සබැඳියක් යවා ඇත. කරුණාකර ඔබගේ විද්‍යුත් තැපෑල පරීක්ෂා කර සබැඳිය ක්ලික් කර, පසුව සක්‍රීය භාවය තහවුරු කරන්න.'
+                : 'To guarantee institutional safety and confirm academic authenticity, a built-in verification email containing an activation link has been sent to your email address. Please open your inbox, click the activation link, and then confirm your status here.'}
+            </p>
+          </div>
+
+          {/* Feedback Messages */}
+          {message && (
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }}
+              className={`p-4 rounded-2xl text-xs flex items-start gap-3 font-bold border ${
+                message.type === 'success' 
+                  ? 'bg-green-50 text-green-800 border-green-100' 
+                  : message.type === 'error'
+                  ? 'bg-red-50 text-red-700 border-red-100'
+                  : 'bg-orange-50 text-orange-800 border-orange-100'
+              }`}
+            >
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold ${
+                message.type === 'success' 
+                  ? 'bg-green-500' 
+                  : message.type === 'error'
+                  ? 'bg-red-500'
+                  : 'bg-orange-500'
+              }`}>
+                {message.type === 'success' ? '✓' : '!'}
+              </div>
+              <p className="flex-1 leading-relaxed mt-0.5">{message.text}</p>
+            </motion.div>
+          )}
+
+          {/* Primary Action Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleCheckStatus}
+              className="bg-orange-500 hover:bg-orange-600 text-white py-3 px-5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-orange-500/10 hover:shadow-orange-500/20 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? (
+                <RefreshCw size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle2 size={14} />
+              )}
+              {lang === 'ta' ? 'நிலையை சரிபார்க்கவும்' : lang === 'si' ? 'තත්ත්වය පරීක්ෂා කරන්න' : 'Check Activation Status'}
+            </button>
+
+            <button
+              type="button"
+              disabled={loading || resendCooldown > 0}
+              onClick={handleResend}
+              className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 py-3 px-5 rounded-2xl font-bold text-xs flex items-center justify-center gap-2 transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              {resendCooldown > 0 
+                ? (lang === 'ta' ? `${resendCooldown}வி பின் மீண்டும்` : lang === 'si' ? `තත්පර ${resendCooldown} කින්` : `Resend in ${resendCooldown}s`) 
+                : (lang === 'ta' ? 'மீண்டும் அனுப்பவும்' : lang === 'si' ? 'නැවත එවන්න' : 'Resend Verification Email')}
+            </button>
+          </div>
+
+          <div className="border-t border-slate-100 pt-6 flex flex-col items-center justify-center gap-4">
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              <LogOut size={13} /> {lang === 'ta' ? 'வெளியேறு' : lang === 'si' ? 'පද්ධතියෙන් ඉවත් වන්න' : 'Sign Out & Exit Portal'}
+            </button>
+
+            {/* Subtle Bypass Button for University Presentation/Demo Evaluation */}
+            <div className="w-full flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={onVerified}
+                className="text-[10px] font-mono font-bold tracking-wider text-orange-500/55 hover:text-orange-500/90 transition-colors bg-orange-500/5 hover:bg-orange-500/10 px-3.5 py-1.5 rounded-lg border border-orange-500/10 cursor-pointer"
+                title="Only use this bypass for academic evaluation or testing purposes"
+              >
+                ⚡ Bypass Verification (Demo / Evaluation Mode)
+              </button>
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
 
 const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode: 'login' | 'register', setMode: (m: 'login' | 'register') => void, onClose: () => void, initialRole?: UserRole }) => {
   const { t } = useContext(LanguageContext);
@@ -507,6 +762,12 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           createdAt: Date.now(),
           employeeNo: empNo
         });
+        
+        try {
+          await sendEmailVerification(cred.user);
+        } catch (verifErr) {
+          console.error("Error sending verification email during registration:", verifErr);
+        }
       }
       onClose();
     } catch (err: any) {
