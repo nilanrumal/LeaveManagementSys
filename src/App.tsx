@@ -270,6 +270,7 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [emailVerified, setEmailVerified] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showSplash, setShowSplash] = useState(true);
   const t = translations[lang];
 
   useEffect(() => {
@@ -338,6 +339,12 @@ export default function App() {
       if (unsubscribeProfile) unsubscribeProfile();
     };
   }, []);
+
+  if (showSplash) return (
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
+      <SplashScreen onComplete={() => setShowSplash(false)} />
+    </LanguageContext.Provider>
+  );
 
   if (loading) return (
     <div className="h-screen w-screen flex flex-col items-center justify-center bg-orange-50/20 text-slate-850 gap-6">
@@ -878,6 +885,152 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
              </p>
           </div>
         </form>
+      </motion.div>
+    </div>
+  );
+};
+
+const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
+  const [progress, setProgress] = useState(0);
+
+  useEffect(() => {
+    const duration = 5000; // 5 seconds
+    const intervalTime = 40;
+    const step = 100 / (duration / intervalTime);
+
+    const timer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(timer);
+          setTimeout(onComplete, 400);
+          return 100;
+        }
+        return prev + step;
+      });
+    }, intervalTime);
+
+    return () => clearInterval(timer);
+  }, [onComplete]);
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-between p-6 sm:p-12 font-sans overflow-hidden select-none relative">
+      {/* Background gradients */}
+      <div className="absolute inset-0 bg-gradient-to-tr from-orange-50/30 via-white to-orange-50/10 pointer-events-none" />
+      <div className="absolute -top-40 -right-40 w-96 h-96 bg-orange-100/40 rounded-full blur-3xl pointer-events-none animate-pulse" />
+      <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-orange-100/30 rounded-full blur-3xl pointer-events-none animate-pulse" />
+
+      {/* Top Margin Spacer */}
+      <div />
+
+      {/* Central Content */}
+      <div className="max-w-2xl w-full text-center flex flex-col items-center gap-8 relative z-10">
+        
+        {/* Animated University Shield */}
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="relative"
+        >
+          {/* Rotating outer glow */}
+          <div className="absolute -inset-4 bg-gradient-to-r from-orange-400 to-amber-500 rounded-full opacity-25 blur-md" />
+          
+          <div className="relative w-28 h-28 bg-white rounded-3xl border-2 border-orange-500/30 flex items-center justify-center shadow-xl shadow-orange-500/5">
+            {/* Embedded custom academic crest representation */}
+            <div className="absolute inset-1.5 border border-dashed border-orange-500/20 rounded-[22px]" />
+            <div className="flex flex-col items-center justify-center">
+              {/* Shield/Emblem icon */}
+              <ShieldCheck className="text-orange-500 w-12 h-12" strokeWidth={1.5} />
+              <Globe2 className="text-amber-500 w-6 h-6 absolute mt-3 mr-3 opacity-80" strokeWidth={1.5} />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Institution Titles in Tamil, Sinhala, English */}
+        <div className="space-y-4">
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="space-y-2"
+          >
+            <h2 className="text-[11px] sm:text-xs font-mono font-bold tracking-[0.25em] text-orange-600 uppercase">
+              University of Jaffna, Sri Lanka
+            </h2>
+            <h1 className="text-lg sm:text-xl font-bold tracking-wide text-slate-800 uppercase font-sans">
+              யாழ்ப்பாணப் பல்கலைக்கழகம்
+            </h1>
+            <h1 className="text-base sm:text-lg font-bold tracking-wide text-slate-700 uppercase font-sans">
+              යාපනය විශ්වවිද්‍යාලය
+            </h1>
+          </motion.div>
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="w-16 h-[2px] bg-gradient-to-r from-transparent via-orange-500 to-transparent mx-auto my-4"
+          />
+
+          <motion.div
+            initial={{ y: 20, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ delay: 0.7, duration: 0.6 }}
+            className="space-y-1"
+          >
+            <p className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
+              Faculty of Science • அறிவியல் புலம் • විද්‍යා පීඨය
+            </p>
+            <h3 className="text-sm sm:text-base font-sans font-black uppercase tracking-tight text-slate-800 leading-snug">
+              Academic Staff Leave Management System
+            </h3>
+          </motion.div>
+        </div>
+
+        {/* Loading Progress Section */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.9, duration: 0.6 }}
+          className="w-full max-w-sm space-y-3 mt-4"
+        >
+          {/* Progress bar container */}
+          <div className="h-1.5 w-full bg-slate-200/75 rounded-full overflow-hidden p-[2px] border border-slate-200/30">
+            <div 
+              style={{ width: `${progress}%` }}
+              className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-75 ease-out"
+            />
+          </div>
+
+          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
+            <span className="tracking-widest uppercase flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+              Initializing secure gateway...
+            </span>
+            <span>{Math.min(100, Math.round(progress))}%</span>
+          </div>
+        </motion.div>
+
+      </div>
+
+      {/* Footer / Skip Control */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
+        className="relative z-10 w-full flex flex-col sm:flex-row items-center justify-between gap-4 text-center"
+      >
+        <span className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-widest">
+          © {new Date().getFullYear()} Faculty of Science
+        </span>
+        
+        <button
+          type="button"
+          onClick={onComplete}
+          className="text-[10px] font-mono font-bold tracking-wider text-orange-500/70 hover:text-orange-500 transition-colors bg-orange-500/5 hover:bg-orange-500/10 px-4 py-2 rounded-xl border border-orange-500/10 cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
+        >
+          Skip Intro (5s)
+        </button>
       </motion.div>
     </div>
   );
