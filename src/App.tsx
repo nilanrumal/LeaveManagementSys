@@ -894,22 +894,45 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
-    const duration = 5000; // 5 seconds
-    const intervalTime = 40;
-    const step = 100 / (duration / intervalTime);
-
-    const timer = setInterval(() => {
+    let timerId: any;
+    
+    const tick = () => {
       setProgress((prev) => {
         if (prev >= 100) {
-          clearInterval(timer);
-          setTimeout(onComplete, 400);
           return 100;
         }
-        return prev + step;
+        
+        // Calculate organic random progress increments depending on current stage
+        let increment = 0;
+        if (prev < 25) {
+          increment = Math.random() * 7 + 3; // 3% to 10%
+        } else if (prev < 60) {
+          increment = Math.random() * 4 + 1; // 1% to 5% (simulated brief slow down)
+        } else if (prev < 85) {
+          increment = Math.random() * 12 + 4; // 4% to 16% (fast burst)
+        } else {
+          increment = Math.random() * 2 + 0.5; // 0.5% to 2.5% (steady final trickle)
+        }
+        
+        const next = Math.min(100, prev + increment);
+        
+        // Randomize the next check interval to feel organically dynamic
+        const nextInterval = Math.random() * 200 + 80; // between 80ms and 280ms
+        
+        if (next < 100) {
+          timerId = setTimeout(tick, nextInterval);
+        } else {
+          timerId = setTimeout(onComplete, 600);
+        }
+        
+        return next;
       });
-    }, intervalTime);
+    };
 
-    return () => clearInterval(timer);
+    // Initial brief delay before commencing progress
+    timerId = setTimeout(tick, 500);
+
+    return () => clearTimeout(timerId);
   }, [onComplete]);
 
   return (
