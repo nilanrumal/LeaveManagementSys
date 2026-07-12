@@ -89,7 +89,7 @@ export default function Portal({ user }: PortalProps) {
   const [verificationError, setVerificationError] = useState('');
 
   // WhatsApp verification delivery states
-  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'callmebot'>('simulator');
+  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'callmebot' | 'direct_link'>('simulator');
   const [callmebotApiKeyInput, setCallmebotApiKeyInput] = useState('');
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [otpSendStatus, setOtpSendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
@@ -130,6 +130,13 @@ export default function Portal({ user }: PortalProps) {
     if (!verificationOtp) return;
 
     if (verificationMethod === 'simulator') {
+      setOtpSendStatus('success');
+      return;
+    }
+
+    if (verificationMethod === 'direct_link') {
+      const textMessage = `💬 *OUSL Leave Management*:\nYour security verification code is: *${verificationOtp.code}*`;
+      window.open(`https://wa.me/${verificationOtp.phone}?text=${encodeURIComponent(textMessage)}`, '_blank');
       setOtpSendStatus('success');
       return;
     }
@@ -3123,6 +3130,25 @@ export default function Portal({ user }: PortalProps) {
                       <p className="text-[10px] text-slate-500 pl-6">Recommended for immediate evaluation inside the web container. Code is shown on screen.</p>
                     </button>
 
+                    {/* Method Direct Link */}
+                    <button 
+                      type="button" 
+                      onClick={() => { setVerificationMethod('direct_link'); setVerificationError(''); }}
+                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
+                        verificationMethod === 'direct_link' 
+                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'direct_link' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
+                          {verificationMethod === 'direct_link' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Direct WhatsApp Link (No API Key Required)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 pl-6">Opens WhatsApp on your device pre-filled with the code so you can send it to your own inbox instantly.</p>
+                    </button>
+
                     {/* Method CallMeBot */}
                     <button 
                       type="button" 
@@ -3137,9 +3163,9 @@ export default function Portal({ user }: PortalProps) {
                         <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'callmebot' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
                           {verificationMethod === 'callmebot' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Real WhatsApp Message (CallMeBot Free)</span>
+                        <span className="text-xs font-bold text-slate-800">Automated Message (CallMeBot Free)</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 pl-6">Receive the verification code directly as an actual message on your phone's WhatsApp device.</p>
+                      <p className="text-[10px] text-slate-500 pl-6">The system sends the message automatically, but requires a one-time activation request to the bot.</p>
                     </button>
                   </div>
 
@@ -3223,6 +3249,35 @@ export default function Portal({ user }: PortalProps) {
                         <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
                           💬 <span className="font-bold text-green-800">OUSL Leave Management:</span> Your security code is <span className="font-mono font-black text-xs text-green-900 bg-green-200/60 px-1.5 py-0.5 rounded">{verificationOtp.code}</span>. Use this code to complete verification.
                         </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {verificationMethod === 'direct_link' && otpSendStatus === 'success' && (
+                    <motion.div 
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 shadow-sm flex gap-3 relative overflow-hidden text-left"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
+                      <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 animate-pulse">
+                        WA
+                      </div>
+                      <div className="space-y-1.5 flex-1">
+                        <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">DIRECT WHATSAPP LINK OPENED</span>
+                        <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
+                          💬 We prepared a direct WhatsApp chat window. Click below to open it and send the pre-filled verification code to your own number:
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const textMessage = `💬 *OUSL Leave Management*:\nYour security verification code is: *${verificationOtp.code}*`;
+                            window.open(`https://wa.me/${verificationOtp.phone}?text=${encodeURIComponent(textMessage)}`, '_blank');
+                          }}
+                          className="mt-1.5 inline-flex items-center gap-1.5 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-[10px] font-bold shadow-sm transition-all cursor-pointer active:scale-95"
+                        >
+                          Send Code via WhatsApp
+                        </button>
                       </div>
                     </motion.div>
                   )}
