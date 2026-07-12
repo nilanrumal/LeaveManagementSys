@@ -1017,12 +1017,37 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
           transition={{ delay: 0.9, duration: 0.6 }}
           className="w-full max-w-sm space-y-3 mt-4"
         >
+          {/* Custom self-contained styles for progress stripes animation */}
+          <style>{`
+            @keyframes progress-stripes {
+              0% { background-position: 0 0; }
+              100% { background-position: 30px 0; }
+            }
+            .animate-stripes {
+              background-size: 30px 30px;
+              background-image: linear-gradient(
+                45deg,
+                rgba(255, 255, 255, 0.2) 25%,
+                transparent 25%,
+                transparent 50%,
+                rgba(255, 255, 255, 0.2) 50%,
+                rgba(255, 255, 255, 0.2) 75%,
+                transparent 75%,
+                transparent
+              );
+              animation: progress-stripes 0.8s linear infinite;
+            }
+          `}</style>
+
           {/* Progress bar container */}
-          <div className="h-1.5 w-full bg-slate-200/75 rounded-full overflow-hidden p-[2px] border border-slate-200/30">
+          <div className="h-3 w-full bg-slate-250/80 rounded-full overflow-hidden p-[2.5px] border border-slate-200/40 shadow-inner relative">
             <div 
               style={{ width: `${progress}%` }}
-              className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-75 ease-out"
-            />
+              className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-75 ease-out relative overflow-hidden"
+            >
+              {/* Striped overlay */}
+              <div className="absolute inset-0 animate-stripes opacity-90" />
+            </div>
           </div>
 
           <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
