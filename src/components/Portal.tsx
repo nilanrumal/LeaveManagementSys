@@ -78,6 +78,38 @@ export default function Portal({ user }: PortalProps) {
   const [savingSliderImage, setSavingSliderImage] = useState(false);
   const [saveSliderSuccess, setSaveSliderSuccess] = useState(false);
 
+  // My WhatsApp phone state
+  const [myPhoneInput, setMyPhoneInput] = useState(user.phone || '');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+  const [savePhoneSuccess, setSavePhoneSuccess] = useState(false);
+
+  // WhatsApp post-approval modal state
+  const [whatsappModalData, setWhatsappModalData] = useState<{
+    employeeName: string;
+    phone: string;
+    message: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (user && user.phone) {
+      setMyPhoneInput(user.phone);
+    }
+  }, [user]);
+
+  const handleSaveMyPhone = async () => {
+    setIsSavingPhone(true);
+    setSavePhoneSuccess(false);
+    try {
+      await userService.updateProfile(user.uid, { phone: myPhoneInput.trim() });
+      setSavePhoneSuccess(true);
+      setTimeout(() => setSavePhoneSuccess(false), 3000);
+    } catch (e) {
+      console.error('Error saving phone:', e);
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
   useEffect(() => {
     if (user.role === 'admin') {
       const unsubscribe = systemService.listenSliderImage((url) => {
@@ -1185,6 +1217,26 @@ export default function Portal({ user }: PortalProps) {
     if (!showCommentModal) return;
     try {
       await leaveService.updateStatus(showCommentModal.id, showCommentModal.status, commentText);
+      
+      // Post-approval WhatsApp workflow trigger
+      if (showCommentModal.status === 'Approved') {
+        const approvedLeave = leaves.find(l => l.id === showCommentModal.id);
+        if (approvedLeave) {
+          const empProfile = allUsers.find(u => u.uid === approvedLeave.employeeId);
+          const empPhone = empProfile?.phone || '';
+          const startDateStr = format(new Date(approvedLeave.startDate), 'yyyy-MM-dd');
+          const endDateStr = format(new Date(approvedLeave.endDate), 'yyyy-MM-dd');
+          
+          const defaultMsg = `Hello ${approvedLeave.employeeName}, your leave request (${approvedLeave.type} Leave) from ${startDateStr} to ${endDateStr} has been APPROVED! 📚 - Jaffna University Leave System`;
+          
+          setWhatsappModalData({
+            employeeName: approvedLeave.employeeName,
+            phone: empPhone,
+            message: defaultMsg
+          });
+        }
+      }
+      
       setShowCommentModal(null);
       setCommentText('');
     } catch (e) {
@@ -1392,10 +1444,44 @@ export default function Portal({ user }: PortalProps) {
                  <ProfileDisplayField label={t.totalLeaveAllowance} value={`${user.totalLeaveDays} ${t.days}`} />
               </div>
 
+              {/* Editable WhatsApp section for standard/non-admin users to update their own contact information */}
+              <div className="mt-6 p-4 rounded-2xl bg-orange-50/50 border border-orange-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="block text-[10px] font-bold text-orange-500 uppercase tracking-widest">My WhatsApp Notification Number</span>
+                  <p className="text-xs text-slate-500">Provide your active WhatsApp number with country code (e.g. 94771234567) to receive instant leave status updates.</p>
+                </div>
+                <div className="flex items-center gap-2 max-w-sm w-full sm:w-auto">
+                  <input
+                    type="text"
+                    placeholder="e.g. 94771234567"
+                    className="bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-orange-500 w-full sm:w-48"
+                    value={myPhoneInput}
+                    onChange={(e) => setMyPhoneInput(e.target.value)}
+                  />
+                  <button
+                    onClick={handleSaveMyPhone}
+                    disabled={isSavingPhone}
+                    className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                  >
+                    {isSavingPhone ? (
+                      <>
+                        <Loader2 size={12} className="animate-spin" /> Saving...
+                      </>
+                    ) : savePhoneSuccess ? (
+                      <>
+                        <Check size={12} /> Saved!
+                      </>
+                    ) : (
+                      'Save Number'
+                    )}
+                  </button>
+                </div>
+              </div>
+
               <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
                 <div className="flex items-center gap-2">
                    <Lock size={14} className="text-slate-400" />
-                   <span>Cannot change details. Please contact HR or Administration to modify this file.</span>
+                   <span>Contact details can be self-edited above. Official academic parameters are immutable.</span>
                 </div>
                 <span>Secured via Jaffna University Network Security</span>
               </div>
@@ -2585,6 +2671,18 @@ export default function Portal({ user }: PortalProps) {
                      onChange={(e) => setEditingUser({ ...editingUser, totalLeaveDays: Number(e.target.value) })}
                    />
                 </div>
+
+                {/* WhatsApp Mobile */}
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">WhatsApp Mobile (e.g. 94771234567)</label>
+                   <input 
+                     type="text" 
+                     className="input-field font-mono" 
+                     placeholder="e.g. 94771234567"
+                     value={editingUser.phone || ''}
+                     onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                   />
+                </div>
               </div>
 
               <div className="mt-8 flex gap-3">
@@ -2602,7 +2700,8 @@ export default function Portal({ user }: PortalProps) {
                         name: editingUser.name,
                         role: editingUser.role,
                         department: editingUser.department,
-                        totalLeaveDays: editingUser.totalLeaveDays
+                        totalLeaveDays: editingUser.totalLeaveDays,
+                        phone: editingUser.phone || ''
                       }
                     });
                   }}
@@ -2693,6 +2792,87 @@ export default function Portal({ user }: PortalProps) {
                   className={`flex-1 py-2.5 text-white font-bold rounded-xl text-sm ${showCommentModal.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`}
                 >
                   {showCommentModal.status === 'Approved' ? t.approve : t.reject}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ----------------- MODAL: WHATSAPP NOTIFICATION ----------------- */}
+      <AnimatePresence>
+        {whatsappModalData && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setWhatsappModalData(null)} 
+              className="absolute inset-0 bg-navy-950/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden p-8 border border-green-100"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-200">
+                  <svg className="w-8 h-8 fill-current text-green-600" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-serif font-black text-navy-900">Send WhatsApp Notification</h3>
+                <p className="text-xs text-slate-500 mt-1">Send a prefilled instant notification to this employee's WhatsApp mobile.</p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Employee WhatsApp Number */}
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">WhatsApp Mobile (with Country Code)</label>
+                   <input 
+                     type="text" 
+                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-green-500" 
+                     placeholder="e.g. 94771234567"
+                     value={whatsappModalData.phone}
+                     onChange={(e) => setWhatsappModalData({ ...whatsappModalData, phone: e.target.value })}
+                   />
+                   <p className="text-[9px] text-slate-400 mt-1">Must start with country code (94 for Sri Lanka) with no "+" prefix or spaces.</p>
+                </div>
+
+                {/* Prefilled message */}
+                <div>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Notification Message</label>
+                   <textarea 
+                     rows={4}
+                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-700 focus:outline-none focus:border-green-500 resize-none"
+                     value={whatsappModalData.message}
+                     onChange={(e) => setWhatsappModalData({ ...whatsappModalData, message: e.target.value })}
+                   />
+                </div>
+              </div>
+
+              <div className="mt-8 flex gap-3">
+                <button 
+                  onClick={() => setWhatsappModalData(null)}
+                  className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
+                >
+                  Skip Notification
+                </button>
+                <button 
+                  onClick={() => {
+                    const cleanPhone = whatsappModalData.phone.replace(/[^0-9]/g, '');
+                    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappModalData.message)}`;
+                    window.open(url, '_blank');
+                    setWhatsappModalData(null);
+                  }}
+                  disabled={!whatsappModalData.phone.trim()}
+                  className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-slate-300 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+                >
+                  <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                  Open WhatsApp
                 </button>
               </div>
             </motion.div>

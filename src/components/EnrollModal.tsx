@@ -18,6 +18,7 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
   const [dept, setDept] = useState('Academic');
   const [loading, setLoading] = useState(false);
@@ -50,7 +51,8 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
         totalLeaveDays: role === 'admin' ? 30 : 25,
         usedLeaveCount: 0,
         createdAt: Date.now(),
-        employeeNo: empNo
+        employeeNo: empNo,
+        phone: phone.trim()
       });
 
       // Sign out of the secondary auth right away
@@ -170,6 +172,17 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
                 type="email" 
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-orange-500" 
                 placeholder="staff.id@university.edu" 
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">WhatsApp Mobile (e.g. 94771234567)</label>
+              <input 
+                value={phone} 
+                onChange={e => setPhone(e.target.value)} 
+                type="text" 
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-orange-500" 
+                placeholder="94771234567" 
               />
             </div>
 
