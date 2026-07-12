@@ -948,24 +948,113 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
       {/* Central Content */}
       <div className="max-w-2xl w-full text-center flex flex-col items-center gap-8 relative z-10">
         
-        {/* Animated University Shield */}
+        {/* Animated University Shield & Google Play-style Circular Progress */}
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
-          className="relative"
+          className="relative w-48 h-48 flex items-center justify-center mx-auto"
         >
-          {/* Rotating outer glow */}
-          <div className="absolute -inset-4 bg-gradient-to-r from-orange-400 to-amber-500 rounded-full opacity-25 blur-md" />
-          
-          <div className="relative w-28 h-28 bg-white rounded-3xl border-2 border-orange-500/30 flex items-center justify-center shadow-xl shadow-orange-500/5">
+          {/* Custom Styles for Wavy Circular Loader */}
+          <style>{`
+            @keyframes play-spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+            @keyframes play-wobble {
+              0%, 100% { transform: scale(1) rotate(0deg); stroke-dasharray: 100 300; }
+              50% { transform: scale(1.04) rotate(180deg); stroke-dasharray: 200 200; }
+            }
+            .animate-play-spin {
+              animation: play-spin 4s linear infinite;
+              transform-origin: center;
+            }
+            .animate-play-wobble {
+              animation: play-wobble 3s ease-in-out infinite alternate;
+              transform-origin: center;
+            }
+          `}</style>
+
+          {/* SVG Circular Progress Indicator (Google Play Store Style) */}
+          <svg className="absolute w-full h-full -rotate-90" viewBox="0 0 200 200">
+            {/* Definitions for gorgeous gradients */}
+            <defs>
+              <linearGradient id="playOrangeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#f97316" />
+                <stop offset="100%" stopColor="#f59e0b" />
+              </linearGradient>
+              <linearGradient id="playWavyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fb923c" stopOpacity="0.4" />
+                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.1" />
+              </linearGradient>
+            </defs>
+
+            {/* Background Base Track */}
+            <circle
+              cx="100"
+              cy="100"
+              r="84"
+              fill="none"
+              stroke="#f1f5f9"
+              strokeWidth="6"
+            />
+
+            {/* Play Store Wavy/Wobbly Companion Circle (Fades as progress completes) */}
+            <circle
+              cx="100"
+              cy="100"
+              r="88"
+              fill="none"
+              stroke="url(#playWavyGrad)"
+              strokeWidth="3"
+              strokeDasharray="120 280"
+              strokeLinecap="round"
+              className="animate-play-wobble opacity-80"
+              style={{
+                transformOrigin: 'center',
+                opacity: progress >= 95 ? 0 : 0.8,
+                transition: 'opacity 0.5s ease'
+              }}
+            />
+
+            {/* Main Progress Circle */}
+            <circle
+              cx="100"
+              cy="100"
+              r="84"
+              fill="none"
+              stroke="url(#playOrangeGrad)"
+              strokeWidth="7"
+              strokeDasharray={2 * Math.PI * 84}
+              strokeDashoffset={2 * Math.PI * 84 * (1 - progress / 100)}
+              strokeLinecap="round"
+              style={{
+                transition: 'stroke-dashoffset 0.15s ease-out',
+                transformOrigin: 'center',
+              }}
+            />
+          </svg>
+
+          {/* Central Shield Container */}
+          <div className="relative w-32 h-32 bg-white rounded-3xl border border-orange-500/15 flex items-center justify-center shadow-xl shadow-orange-500/5 overflow-hidden">
             {/* Embedded custom academic crest representation */}
             <div className="absolute inset-1.5 border border-dashed border-orange-500/20 rounded-[22px]" />
-            <div className="flex flex-col items-center justify-center">
+            <div className="flex flex-col items-center justify-center relative z-10">
               {/* Shield/Emblem icon */}
-              <ShieldCheck className="text-orange-500 w-12 h-12" strokeWidth={1.5} />
-              <Globe2 className="text-amber-500 w-6 h-6 absolute mt-3 mr-3 opacity-80" strokeWidth={1.5} />
+              <ShieldCheck className="text-orange-500 w-14 h-14" strokeWidth={1.5} />
+              <Globe2 className="text-amber-500 w-7 h-7 absolute mt-4 mr-4 opacity-85" strokeWidth={1.5} />
             </div>
+
+            {/* Subtle shining light sweep */}
+            <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent -translate-x-full animate-pulse" />
+          </div>
+
+          {/* Micro Glowing Percentage Badge overlapping the bottom center */}
+          <div className="absolute -bottom-2 bg-gradient-to-r from-orange-500 to-orange-600 px-3.5 py-1 rounded-full shadow-lg shadow-orange-500/20 border border-orange-400/20 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+            <span className="text-[10px] font-mono font-black text-white tracking-wider">
+              {Math.min(100, Math.round(progress))}%
+            </span>
           </div>
         </motion.div>
 
@@ -1010,53 +1099,17 @@ const SplashScreen = ({ onComplete }: { onComplete: () => void }) => {
           </motion.div>
         </div>
 
-        {/* Loading Progress Section */}
+        {/* Loading Progress Status Text */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.9, duration: 0.6 }}
-          className="w-full max-w-sm space-y-3 mt-4"
+          className="flex justify-center items-center text-[10px] font-mono font-bold text-slate-400"
         >
-          {/* Custom self-contained styles for progress stripes animation */}
-          <style>{`
-            @keyframes progress-stripes {
-              0% { background-position: 0 0; }
-              100% { background-position: 30px 0; }
-            }
-            .animate-stripes {
-              background-size: 30px 30px;
-              background-image: linear-gradient(
-                45deg,
-                rgba(255, 255, 255, 0.2) 25%,
-                transparent 25%,
-                transparent 50%,
-                rgba(255, 255, 255, 0.2) 50%,
-                rgba(255, 255, 255, 0.2) 75%,
-                transparent 75%,
-                transparent
-              );
-              animation: progress-stripes 0.8s linear infinite;
-            }
-          `}</style>
-
-          {/* Progress bar container */}
-          <div className="h-3 w-full bg-slate-250/80 rounded-full overflow-hidden p-[2.5px] border border-slate-200/40 shadow-inner relative">
-            <div 
-              style={{ width: `${progress}%` }}
-              className="h-full bg-gradient-to-r from-orange-500 to-amber-500 rounded-full transition-all duration-75 ease-out relative overflow-hidden"
-            >
-              {/* Striped overlay */}
-              <div className="absolute inset-0 animate-stripes opacity-90" />
-            </div>
-          </div>
-
-          <div className="flex justify-between items-center text-[10px] font-mono font-bold text-slate-400">
-            <span className="tracking-widest uppercase flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
-              Initializing secure gateway...
-            </span>
-            <span>{Math.min(100, Math.round(progress))}%</span>
-          </div>
+          <span className="tracking-widest uppercase flex items-center gap-1.5 bg-slate-100/60 px-3 py-1.5 rounded-full border border-slate-200/45">
+            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full animate-ping" />
+            Initializing secure gateway...
+          </span>
         </motion.div>
 
       </div>
