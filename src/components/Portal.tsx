@@ -93,7 +93,7 @@ export default function Portal({ user }: PortalProps) {
   const [verificationError, setVerificationError] = useState('');
 
   // WhatsApp verification delivery states
-  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'direct_link'>('direct_link');
+  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'direct_link'>('simulator');
   const [otpSendStatus, setOtpSendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   // Post-decision unified notification modal state (WhatsApp and Email)
@@ -3269,25 +3269,6 @@ Open University of Sri Lanka`;
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">1. Select Verification Delivery Method</span>
                   
                   <div className="grid grid-cols-1 gap-2.5">
-                    {/* Method Direct Link */}
-                    <button 
-                      type="button" 
-                      onClick={() => { setVerificationMethod('direct_link'); setVerificationError(''); }}
-                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
-                        verificationMethod === 'direct_link' 
-                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'direct_link' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
-                          {verificationMethod === 'direct_link' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
-                        </div>
-                        <span className="text-xs font-bold text-slate-800 font-sans">Direct WhatsApp Link</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 pl-6">Recommended. We prepare a direct WhatsApp chat window with the pre-filled verification code.</p>
-                    </button>
-
                     {/* Method Simulator */}
                     <button 
                       type="button" 
@@ -3305,6 +3286,25 @@ Open University of Sri Lanka`;
                         <span className="text-xs font-bold text-slate-800 font-sans">My mobile has no WhatsApp</span>
                       </div>
                       <p className="text-[10px] text-slate-500 pl-6">Ideal for immediate verification if you don't use WhatsApp. Code is shown on screen instantly.</p>
+                    </button>
+
+                    {/* Method Direct Link */}
+                    <button 
+                      type="button" 
+                      onClick={() => { setVerificationMethod('direct_link'); setVerificationError(''); }}
+                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
+                        verificationMethod === 'direct_link' 
+                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'direct_link' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
+                          {verificationMethod === 'direct_link' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800 font-sans">Direct WhatsApp Link</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 pl-6">Recommended. We prepare a direct WhatsApp chat window with the pre-filled verification code.</p>
                     </button>
                   </div>
 
