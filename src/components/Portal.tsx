@@ -26,7 +26,11 @@ import {
   FolderMinus,
   Briefcase,
   Printer,
-  UserPlus
+  UserPlus,
+  Mail,
+  Send,
+  Copy,
+  ExternalLink
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
@@ -89,24 +93,27 @@ export default function Portal({ user }: PortalProps) {
   const [verificationError, setVerificationError] = useState('');
 
   // WhatsApp verification delivery states
-  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'callmebot' | 'direct_link'>('simulator');
-  const [callmebotApiKeyInput, setCallmebotApiKeyInput] = useState('');
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'direct_link'>('direct_link');
   const [otpSendStatus, setOtpSendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
-  // WhatsApp post-approval modal state
+  // Post-decision unified notification modal state (WhatsApp and Email)
   const [whatsappModalData, setWhatsappModalData] = useState<{
     employeeName: string;
     phone: string;
+    email: string;
     message: string;
+    emailSubject: string;
+    emailBody: string;
+    status: 'Approved' | 'Rejected';
+    reason: string;
   } | null>(null);
+
+  const [notificationSubTab, setNotificationSubTab] = useState<'whatsapp' | 'email'>('whatsapp');
+  const [copiedText, setCopiedText] = useState(false);
 
   useEffect(() => {
     if (user && user.phone) {
       setMyPhoneInput(user.phone);
-    }
-    if (user && user.callmebotApiKey) {
-      setCallmebotApiKeyInput(user.callmebotApiKey);
     }
   }, [user]);
 
@@ -140,34 +147,6 @@ export default function Portal({ user }: PortalProps) {
       setOtpSendStatus('success');
       return;
     }
-
-    if (verificationMethod === 'callmebot') {
-      if (!callmebotApiKeyInput.trim()) {
-        setVerificationError("Please enter your CallMeBot API Key to dispatch real WhatsApp messages.");
-        return;
-      }
-      setIsSendingOtp(true);
-      setOtpSendStatus('sending');
-      setVerificationError('');
-      try {
-        const textMessage = `💬 *OUSL Leave Management*:\nYour security verification code is: *${verificationOtp.code}*`;
-        // Make the GET request to CallMeBot API (CORS bypass via mode: 'no-cors' is reliable for dispatching the request)
-        await fetch(`https://api.callmebot.com/whatsapp.php?phone=${verificationOtp.phone}&text=${encodeURIComponent(textMessage)}&apikey=${callmebotApiKeyInput.trim()}`, {
-          method: 'GET',
-          mode: 'no-cors'
-        });
-
-        // Save CallMeBot API key in user's profile
-        await userService.updateProfile(user.uid, { callmebotApiKey: callmebotApiKeyInput.trim() });
-        setOtpSendStatus('success');
-      } catch (e) {
-        console.error('CallMeBot error:', e);
-        setVerificationError("Failed to dispatch code via CallMeBot. Please verify your API Key and internet connection.");
-        setOtpSendStatus('error');
-      } finally {
-        setIsSendingOtp(false);
-      }
-    }
   };
 
   const handleVerifyCode = async () => {
@@ -183,8 +162,7 @@ export default function Portal({ user }: PortalProps) {
       await userService.updateProfile(user.uid, { 
         phone: verificationOtp.phone,
         phoneVerified: true,
-        phoneVerifiedAt: nowString,
-        callmebotApiKey: callmebotApiKeyInput.trim() || undefined
+        phoneVerifiedAt: nowString
       });
       setVerificationOtp(null);
       setSavePhoneSuccess(true);
@@ -1313,22 +1291,63 @@ export default function Portal({ user }: PortalProps) {
     try {
       await leaveService.updateStatus(showCommentModal.id, showCommentModal.status, commentText);
       
-      // Post-approval WhatsApp workflow trigger
-      if (showCommentModal.status === 'Approved') {
-        const approvedLeave = leaves.find(l => l.id === showCommentModal.id);
-        if (approvedLeave) {
-          const empProfile = allUsers.find(u => u.uid === approvedLeave.employeeId);
+      // Post-decision communication trigger (WhatsApp + Email)
+      if (showCommentModal.status === 'Approved' || showCommentModal.status === 'Rejected') {
+        const targetLeave = leaves.find(l => l.id === showCommentModal.id);
+        if (targetLeave) {
+          const empProfile = allUsers.find(u => u.uid === targetLeave.employeeId);
           const empPhone = empProfile?.phone || '';
-          const startDateStr = format(new Date(approvedLeave.startDate), 'yyyy-MM-dd');
-          const endDateStr = format(new Date(approvedLeave.endDate), 'yyyy-MM-dd');
+          const empEmail = empProfile?.email || '';
+          const startDateStr = format(new Date(targetLeave.startDate), 'yyyy-MM-dd');
+          const endDateStr = format(new Date(targetLeave.endDate), 'yyyy-MM-dd');
           
-          const defaultMsg = `Hello ${approvedLeave.employeeName}, your leave request (${approvedLeave.type} Leave) from ${startDateStr} to ${endDateStr} has been APPROVED! 📚 - OUSL Leave Management`;
+          const statusText = showCommentModal.status === 'Approved' ? 'APPROVED' : 'REJECTED';
+          const emoji = showCommentModal.status === 'Approved' ? '✅' : '❌';
+          const remarks = commentText.trim() || 'No specific comment provided.';
           
+          // Formulate premium WhatsApp body
+          const whatsappMsg = `💬 *OUSL Leave Management* (Jaffna Campus)\n\nDear *${targetLeave.employeeName}*,\n\nYour leave request for *${targetLeave.type} Leave* from *${startDateStr}* to *${endDateStr}* (${targetLeave.duration} Day${targetLeave.duration > 1 ? 's' : ''}) has been *${statusText}* ${emoji} by the administrator.\n\n📝 *Comments/Reason*:\n"${remarks}"\n\nKind regards,\n_Office of Academic Leave, OUSL_`;
+
+          // Formulate premium email subject & body
+          const emailSubject = `[Leave Decision] Request for ${targetLeave.type} Leave: ${statusText}`;
+          const emailBody = `Dear ${targetLeave.employeeName},
+
+This is an automated notification from the Office of Academic Leave Administration, Open University of Sri Lanka.
+
+Your leave request has been evaluated with the following determination:
+
+--------------------------------------------------
+Leave Details:
+--------------------------------------------------
+- Employee Name: ${targetLeave.employeeName}
+- Employee No: ${targetLeave.employeeNo}
+- Leave Type: ${targetLeave.type}
+- Leave Period: ${startDateStr} to ${endDateStr}
+- Duration: ${targetLeave.duration} Day(s)
+- Current Status: ${statusText} ${emoji}
+
+--------------------------------------------------
+Administrative Reason & Remarks:
+--------------------------------------------------
+"${remarks}"
+
+If you have any questions or require further clarification, please contact the Assistant Registrar's department.
+
+Yours sincerely,
+Leave Management & Administration Office
+Open University of Sri Lanka`;
+
           setWhatsappModalData({
-            employeeName: approvedLeave.employeeName,
+            employeeName: targetLeave.employeeName,
             phone: empPhone,
-            message: defaultMsg
+            email: empEmail,
+            message: whatsappMsg,
+            emailSubject: emailSubject,
+            emailBody: emailBody,
+            status: showCommentModal.status,
+            reason: remarks
           });
+          setNotificationSubTab('whatsapp');
         }
       }
       
@@ -2998,7 +3017,7 @@ export default function Portal({ user }: PortalProps) {
         )}
       </AnimatePresence>
 
-      {/* ----------------- MODAL: WHATSAPP NOTIFICATION ----------------- */}
+      {/* ----------------- MODAL: LEAVE OUTCOME DISPATCHER (WHATSAPP & EMAIL) ----------------- */}
       <AnimatePresence>
         {whatsappModalData && (
           <div className="fixed inset-0 z-[130] flex items-center justify-center p-4">
@@ -3013,66 +3032,204 @@ export default function Portal({ user }: PortalProps) {
               initial={{ scale: 0.95, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden p-8 border border-green-100"
+              className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl relative z-10 overflow-hidden flex flex-col max-h-[90vh] border border-orange-100"
             >
-              <div className="text-center mb-6">
-                <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-200">
-                  <svg className="w-8 h-8 fill-current text-green-600" viewBox="0 0 24 24">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
-                  </svg>
+              {/* Header */}
+              <div className="p-6 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-xl text-white ${whatsappModalData.status === 'Approved' ? 'bg-green-600' : 'bg-red-600'}`}>
+                    <CheckCircle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-sans font-black text-slate-800 uppercase tracking-tight">Leave Outcome Dispatcher</h3>
+                    <p className="text-[11px] text-slate-500">Applicant: <strong className="text-slate-700">{whatsappModalData.employeeName}</strong> ({whatsappModalData.status})</p>
+                  </div>
                 </div>
-                <h3 className="text-lg font-serif font-black text-navy-900">Send WhatsApp Notification</h3>
-                <p className="text-xs text-slate-500 mt-1">Send a prefilled instant notification to this employee's WhatsApp mobile.</p>
-              </div>
-
-              <div className="space-y-4">
-                {/* Employee WhatsApp Number */}
-                <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">WhatsApp Mobile (with Country Code)</label>
-                   <input 
-                     type="text" 
-                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-green-500" 
-                     placeholder="e.g. 94771234567"
-                     value={whatsappModalData.phone}
-                     onChange={(e) => setWhatsappModalData({ ...whatsappModalData, phone: e.target.value })}
-                   />
-                   <p className="text-[9px] text-slate-400 mt-1">Must start with country code (94 for Sri Lanka) with no "+" prefix or spaces.</p>
-                </div>
-
-                {/* Prefilled message */}
-                <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Notification Message</label>
-                   <textarea 
-                     rows={4}
-                     className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-700 focus:outline-none focus:border-green-500 resize-none"
-                     value={whatsappModalData.message}
-                     onChange={(e) => setWhatsappModalData({ ...whatsappModalData, message: e.target.value })}
-                   />
-                </div>
-              </div>
-
-              <div className="mt-8 flex gap-3">
                 <button 
                   onClick={() => setWhatsappModalData(null)}
-                  className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 hover:bg-slate-200/55 p-1.5 rounded-full transition cursor-pointer"
                 >
-                  Skip Notification
+                  <X size={18} />
                 </button>
-                <button 
-                  onClick={() => {
-                    const cleanPhone = whatsappModalData.phone.replace(/[^0-9]/g, '');
-                    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappModalData.message)}`;
-                    window.open(url, '_blank');
-                    setWhatsappModalData(null);
-                  }}
-                  disabled={!whatsappModalData.phone.trim()}
-                  className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-slate-300 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer"
+              </div>
+
+              {/* Channel Selector Tab Buttons */}
+              <div className="px-6 pt-4 pb-2 border-b border-slate-100 flex gap-2">
+                <button
+                  onClick={() => { setNotificationSubTab('whatsapp'); setCopiedText(false); }}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    notificationSubTab === 'whatsapp'
+                      ? 'bg-green-50 text-green-700 border-2 border-green-500/25 shadow-sm'
+                      : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
                 >
-                  <svg className="w-4 h-4 fill-current text-white" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                   </svg>
-                  Open WhatsApp
+                  WhatsApp Channel
                 </button>
+                <button
+                  onClick={() => { setNotificationSubTab('email'); setCopiedText(false); }}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    notificationSubTab === 'email'
+                      ? 'bg-blue-50 text-blue-700 border-2 border-blue-500/25 shadow-sm'
+                      : 'bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-50 border border-slate-200'
+                  }`}
+                >
+                  <Mail size={15} />
+                  Institutional Email
+                </button>
+              </div>
+
+              {/* Scrollable Form Body */}
+              <div className="p-6 overflow-y-auto space-y-4 max-h-[50vh] text-left">
+                {notificationSubTab === 'whatsapp' ? (
+                  <div className="space-y-4">
+                    <div className="bg-green-50/55 rounded-2xl p-4 border border-green-100 flex gap-3 text-xs text-green-800">
+                      <span className="text-base">📢</span>
+                      <div>
+                        <strong>Instant Mobile Direct Link:</strong> Generates a WhatsApp API redirection link carrying a formal, professional notification text.
+                      </div>
+                    </div>
+
+                    {/* Recipient Phone */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recipient WhatsApp No (with country code)</label>
+                      <input 
+                        type="text" 
+                        placeholder="e.g. 94771234567"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-green-500"
+                        value={whatsappModalData.phone}
+                        onChange={(e) => setWhatsappModalData({ ...whatsappModalData, phone: e.target.value })}
+                      />
+                      <span className="block text-[9px] text-slate-400">Must start with country code (94 for Sri Lanka) with no "+" prefix or spaces.</span>
+                    </div>
+
+                    {/* WhatsApp Body Text */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pre-filled WhatsApp Message</label>
+                      <textarea 
+                        rows={6}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-medium text-slate-700 focus:outline-none focus:border-green-500 resize-none font-sans"
+                        value={whatsappModalData.message}
+                        onChange={(e) => setWhatsappModalData({ ...whatsappModalData, message: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="bg-blue-50/55 rounded-2xl p-4 border border-blue-100 flex gap-3 text-xs text-blue-800">
+                      <span className="text-base">✉️</span>
+                      <div>
+                        <strong>Institutional Mailto Protocol:</strong> Pre-formats a formal administrative memo. Opens directly in your desktop email client (Outlook, Thunderbird, Mail, etc.) pre-addressed.
+                      </div>
+                    </div>
+
+                    {/* Recipient Email */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Recipient Institutional Email Address</label>
+                      <input 
+                        type="email" 
+                        placeholder="e.g. staffmember@ousl.lk"
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+                        value={whatsappModalData.email}
+                        onChange={(e) => setWhatsappModalData({ ...whatsappModalData, email: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Email Subject */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Email Subject Line</label>
+                      <input 
+                        type="text" 
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500 font-sans"
+                        value={whatsappModalData.emailSubject}
+                        onChange={(e) => setWhatsappModalData({ ...whatsappModalData, emailSubject: e.target.value })}
+                      />
+                    </div>
+
+                    {/* Email Body */}
+                    <div className="space-y-1">
+                      <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Institutional Email Body</label>
+                      <textarea 
+                        rows={8}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-4 py-3 text-xs font-mono text-slate-700 focus:outline-none focus:border-green-500 resize-none leading-relaxed"
+                        value={whatsappModalData.emailBody}
+                        onChange={(e) => setWhatsappModalData({ ...whatsappModalData, emailBody: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer and Dispatch actions */}
+              <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-3">
+                <div className="flex gap-2 w-full">
+                  {/* Copy Button */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const textToCopy = notificationSubTab === 'whatsapp' ? whatsappModalData.message : whatsappModalData.emailBody;
+                      navigator.clipboard.writeText(textToCopy);
+                      setCopiedText(true);
+                      setTimeout(() => setCopiedText(false), 2000);
+                    }}
+                    className="px-4 bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100 rounded-2xl text-xs flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer whitespace-nowrap shadow-sm"
+                  >
+                    {copiedText ? (
+                      <>
+                        <Check size={14} className="text-green-600" /> Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} /> Copy Draft
+                      </>
+                    )}
+                  </button>
+
+                  {/* Launch Primary Action Button */}
+                  {notificationSubTab === 'whatsapp' ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cleanPhone = whatsappModalData.phone.replace(/[^0-9]/g, '');
+                        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappModalData.message)}`;
+                        window.open(url, '_blank');
+                        setWhatsappModalData(null);
+                      }}
+                      disabled={!whatsappModalData.phone.trim()}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      <Send size={14} />
+                      Launch WhatsApp Dispatch
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const mailtoUrl = `mailto:${whatsappModalData.email}?subject=${encodeURIComponent(whatsappModalData.emailSubject)}&body=${encodeURIComponent(whatsappModalData.emailBody)}`;
+                        window.open(mailtoUrl, '_blank');
+                        setWhatsappModalData(null);
+                      }}
+                      disabled={!whatsappModalData.email.trim()}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
+                    >
+                      <ExternalLink size={14} />
+                      Launch Institutional Mail
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex justify-between items-center text-[10px] text-slate-400 font-medium">
+                  <span>Secured via OUSL Registry</span>
+                  <button 
+                    type="button" 
+                    onClick={() => setWhatsappModalData(null)}
+                    className="text-slate-500 hover:text-slate-700 font-bold underline cursor-pointer"
+                  >
+                    Skip & Close Dispatcher
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -3111,25 +3268,6 @@ export default function Portal({ user }: PortalProps) {
                   <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">1. Select Verification Delivery Method</span>
                   
                   <div className="grid grid-cols-1 gap-2.5">
-                    {/* Method Simulator */}
-                    <button 
-                      type="button" 
-                      onClick={() => { setVerificationMethod('simulator'); setVerificationError(''); }}
-                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
-                        verificationMethod === 'simulator' 
-                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
-                          : 'border-slate-200 bg-white hover:border-slate-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'simulator' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
-                          {verificationMethod === 'simulator' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
-                        </div>
-                        <span className="text-xs font-bold text-slate-800">System Simulator (Instant Setup)</span>
-                      </div>
-                      <p className="text-[10px] text-slate-500 pl-6">Recommended for immediate evaluation inside the web container. Code is shown on screen.</p>
-                    </button>
-
                     {/* Method Direct Link */}
                     <button 
                       type="button" 
@@ -3144,60 +3282,30 @@ export default function Portal({ user }: PortalProps) {
                         <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'direct_link' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
                           {verificationMethod === 'direct_link' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Direct WhatsApp Link (No API Key Required)</span>
+                        <span className="text-xs font-bold text-slate-800 font-sans">Direct WhatsApp Link</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 pl-6">Opens WhatsApp on your device pre-filled with the code so you can send it to your own inbox instantly.</p>
+                      <p className="text-[10px] text-slate-500 pl-6">Recommended. We prepare a direct WhatsApp chat window with the pre-filled verification code.</p>
                     </button>
 
-                    {/* Method CallMeBot */}
+                    {/* Method Simulator */}
                     <button 
                       type="button" 
-                      onClick={() => { setVerificationMethod('callmebot'); setVerificationError(''); }}
+                      onClick={() => { setVerificationMethod('simulator'); setVerificationError(''); }}
                       className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
-                        verificationMethod === 'callmebot' 
+                        verificationMethod === 'simulator' 
                           ? 'border-green-500 bg-green-50/55 shadow-sm' 
                           : 'border-slate-200 bg-white hover:border-slate-300'
                       }`}
                     >
                       <div className="flex items-center gap-2 mb-1">
-                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'callmebot' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
-                          {verificationMethod === 'callmebot' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'simulator' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
+                          {verificationMethod === 'simulator' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
                         </div>
-                        <span className="text-xs font-bold text-slate-800">Automated Message (CallMeBot Free)</span>
+                        <span className="text-xs font-bold text-slate-800 font-sans">My mobile has no WhatsApp</span>
                       </div>
-                      <p className="text-[10px] text-slate-500 pl-6">The system sends the message automatically, but requires a one-time activation request to the bot.</p>
+                      <p className="text-[10px] text-slate-500 pl-6">Ideal for immediate verification if you don't use WhatsApp. Code is shown on screen instantly.</p>
                     </button>
                   </div>
-
-                  {verificationMethod === 'callmebot' && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-3 space-y-3"
-                    >
-                      <div className="space-y-1">
-                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Paste CallMeBot API Key</label>
-                        <input 
-                          type="text" 
-                          placeholder="E.g. 123456" 
-                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-green-500"
-                          value={callmebotApiKeyInput}
-                          onChange={(e) => {
-                            setCallmebotApiKeyInput(e.target.value);
-                            setVerificationError('');
-                          }}
-                        />
-                      </div>
-                      <div className="bg-amber-50/75 border border-amber-100 rounded-xl p-3 text-[10px] text-amber-800 space-y-1.5">
-                        <p className="font-bold text-[11px]">🔑 Don't have an API key? Get it free in 15 seconds:</p>
-                        <ol className="list-decimal list-inside space-y-1 text-slate-700">
-                          <li>Click this direct link: <a href="https://wa.me/34671311602?text=I+allow+callmebot+to+send+me+messages" target="_blank" rel="noopener noreferrer" className="font-bold underline text-green-700 hover:text-green-800">Get Free WhatsApp API Key</a></li>
-                          <li>Click <strong>Send</strong> inside WhatsApp (sends "I allow callmebot to send me messages").</li>
-                          <li>It replies instantly with your <strong>API Key</strong>. Copy & paste it above!</li>
-                        </ol>
-                      </div>
-                    </motion.div>
-                  )}
 
                   {verificationError && (
                     <p className="text-[10px] text-red-500 mt-2 font-bold font-sans text-center">{verificationError}</p>
@@ -3239,11 +3347,11 @@ export default function Portal({ user }: PortalProps) {
                     >
                       <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
                       <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        WA
+                        SMS
                       </div>
                       <div className="space-y-1">
                         <div className="flex justify-between items-center w-full">
-                          <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Simulated Phone Gateway</span>
+                          <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">SMS Simulator (No WhatsApp)</span>
                           <span className="text-[9px] text-slate-400 font-mono">Just Now</span>
                         </div>
                         <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
@@ -3278,25 +3386,6 @@ export default function Portal({ user }: PortalProps) {
                         >
                           Send Code via WhatsApp
                         </button>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {verificationMethod === 'callmebot' && otpSendStatus === 'success' && (
-                    <motion.div 
-                      initial={{ y: -20, opacity: 0 }}
-                      animate={{ y: 0, opacity: 1 }}
-                      className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 shadow-sm flex gap-3 relative overflow-hidden text-left animate-pulse"
-                    >
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
-                      <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                        WA
-                      </div>
-                      <div className="space-y-1">
-                        <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">REAL DISPATCH SUCCESS</span>
-                        <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
-                          💬 Real WhatsApp OTP dispatched to your device <strong>+{verificationOtp.phone}</strong>! Check your WhatsApp app.
-                        </p>
                       </div>
                     </motion.div>
                   )}
