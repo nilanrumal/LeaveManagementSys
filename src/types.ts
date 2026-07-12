@@ -25,6 +25,8 @@ export interface UserProfile {
   createdAt: number;
   employeeNo: string;
   phone?: string;
+  phoneVerified?: boolean;
+  phoneVerifiedAt?: string;
 }
 
 export type LeaveType = 'Annual' | 'Sick' | 'Personal' | 'Maternity/Paternity' | 'Study';

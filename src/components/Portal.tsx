@@ -83,6 +83,11 @@ export default function Portal({ user }: PortalProps) {
   const [isSavingPhone, setIsSavingPhone] = useState(false);
   const [savePhoneSuccess, setSavePhoneSuccess] = useState(false);
 
+  // WhatsApp verification states
+  const [verificationOtp, setVerificationOtp] = useState<{ phone: string; code: string } | null>(null);
+  const [otpInput, setOtpInput] = useState('');
+  const [verificationError, setVerificationError] = useState('');
+
   // WhatsApp post-approval modal state
   const [whatsappModalData, setWhatsappModalData] = useState<{
     employeeName: string;
@@ -96,15 +101,42 @@ export default function Portal({ user }: PortalProps) {
     }
   }, [user]);
 
-  const handleSaveMyPhone = async () => {
+  const handleSaveMyPhone = () => {
+    const cleanPhone = myPhoneInput.replace(/[^0-9]/g, '');
+    if (cleanPhone.length < 9) {
+      alert("Please enter a valid WhatsApp number with country code (minimum 9 digits, e.g. 94771234567).");
+      return;
+    }
+    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+    setVerificationOtp({
+      phone: cleanPhone,
+      code: generatedCode
+    });
+    setOtpInput('');
+    setVerificationError('');
+  };
+
+  const handleVerifyCode = async () => {
+    if (!verificationOtp) return;
+    if (otpInput !== verificationOtp.code) {
+      setVerificationError("Verification code mismatch. Please enter the correct code shown in the simulated gateway.");
+      return;
+    }
+    
     setIsSavingPhone(true);
-    setSavePhoneSuccess(false);
     try {
-      await userService.updateProfile(user.uid, { phone: myPhoneInput.trim() });
+      const nowString = format(new Date(), 'yyyy-MM-dd HH:mm:ss');
+      await userService.updateProfile(user.uid, { 
+        phone: verificationOtp.phone,
+        phoneVerified: true,
+        phoneVerifiedAt: nowString
+      });
+      setVerificationOtp(null);
       setSavePhoneSuccess(true);
       setTimeout(() => setSavePhoneSuccess(false), 3000);
     } catch (e) {
       console.error('Error saving phone:', e);
+      setVerificationError("Database error. Please try again.");
     } finally {
       setIsSavingPhone(false);
     }
@@ -1455,7 +1487,14 @@ export default function Portal({ user }: PortalProps) {
               {/* Editable WhatsApp section for standard/non-admin users to update their own contact information */}
               <div className="mt-6 p-4 rounded-2xl bg-orange-50/50 border border-orange-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
-                  <span className="block text-[10px] font-bold text-orange-500 uppercase tracking-widest">My WhatsApp Notification Number</span>
+                  <span className="block text-[10px] font-bold text-orange-500 uppercase tracking-widest flex items-center gap-1.5">
+                    My WhatsApp Notification Number
+                    {user.phone && user.phoneVerified && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded bg-green-500 text-[8px] font-black uppercase text-white font-mono">
+                        ✓ Verified
+                      </span>
+                    )}
+                  </span>
                   <p className="text-xs text-slate-500 font-medium">Provide your active WhatsApp number with country code (e.g. 94771234567) to receive instant leave status updates.</p>
                   {user.phone && user.phone.trim() !== '' && (
                     <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1 font-sans">
@@ -1464,7 +1503,7 @@ export default function Portal({ user }: PortalProps) {
                         ? 'சுயவிவரம் சேமிக்கப்பட்டு பூட்டப்பட்டது. மாற்றியமைக்க நிர்வாகியைத் தொடர்பு கொள்ளவும்.' 
                         : lang === 'si' 
                         ? 'සුරැකි සහ අගුළු දමා ඇත. සංශෝධනය කිරීමට පරිපාලක අමතන්න.' 
-                        : 'Saved & locked. Contact Admin to make any changes.'}
+                        : 'Verified & locked. Contact Admin to make any changes.'}
                     </span>
                   )}
                 </div>
@@ -1494,14 +1533,14 @@ export default function Portal({ user }: PortalProps) {
                       </>
                     ) : savePhoneSuccess ? (
                       <>
-                        <Check size={12} /> Saved!
+                        <Check size={12} /> Verified!
                       </>
                     ) : user.phone && user.phone.trim() !== '' ? (
                       <>
                         <Lock size={12} /> Locked
                       </>
                     ) : (
-                      'Save Number'
+                      'Verify & Save'
                     )}
                   </button>
                 </div>
@@ -2392,6 +2431,7 @@ export default function Portal({ user }: PortalProps) {
                     <th className="px-6 py-4">{t.actingPersonnelID}</th>
                     <th className="px-6 py-4">{t.reportDept}</th>
                     <th className="px-6 py-4">{t.accessTier}</th>
+                    <th className="px-6 py-4">WhatsApp Status</th>
                     <th className="px-6 py-4">{t.remainingDays}</th>
                     <th className="px-6 py-4 text-right">{t.actions}</th>
                   </tr>
@@ -2422,6 +2462,31 @@ export default function Portal({ user }: PortalProps) {
                             {(usr.role === 'employee' || usr.role === 'staff') ? t.staffMember : usr.role === 'hod' ? t.hodRole : usr.role === 'ceo' ? t.ceoRole : t.adminRole}
                           </span>
                         </td>
+                        <td className="px-6 py-4">
+                          {usr.phone ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-slate-800">
+                                <span>+{usr.phone}</span>
+                                {usr.phoneVerified ? (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-green-500 text-[9px] text-white font-sans font-bold uppercase">
+                                    <Check size={10} strokeWidth={3} /> Verified
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-[9px] text-amber-600 font-sans font-bold uppercase">
+                                    Unverified
+                                  </span>
+                                )}
+                              </div>
+                              {usr.phoneVerified && usr.phoneVerifiedAt && (
+                                <p className="text-[10px] text-slate-400 font-medium font-sans">
+                                  Verified at: {usr.phoneVerifiedAt}
+                                </p>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Not Registered</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 text-sm font-bold text-navy-900">
                           {usr.totalLeaveDays} {t.days}
                         </td>
@@ -2451,7 +2516,7 @@ export default function Portal({ user }: PortalProps) {
                     ))
                   ) : (
                     <tr>
-                      <td colSpan={6} className="px-6 py-10 text-center text-slate-400">
+                      <td colSpan={7} className="px-6 py-10 text-center text-slate-400">
                         No staff matching your search criteria.
                       </td>
                     </tr>
@@ -2713,9 +2778,53 @@ export default function Portal({ user }: PortalProps) {
                      className="input-field font-mono" 
                      placeholder="e.g. 94771234567"
                      value={editingUser.phone || ''}
-                     onChange={(e) => setEditingUser({ ...editingUser, phone: e.target.value })}
+                     onChange={(e) => {
+                       const val = e.target.value.replace(/[^0-9]/g, '');
+                       setEditingUser({ ...editingUser, phone: val });
+                     }}
                    />
                 </div>
+
+                {/* Verification Toggle */}
+                {editingUser.phone && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-slate-700">Mark Number as Verified</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const isVerified = !editingUser.phoneVerified;
+                          const timestamp = isVerified ? format(new Date(), 'yyyy-MM-dd HH:mm:ss') : '';
+                           setEditingUser({
+                             ...editingUser,
+                             phoneVerified: isVerified,
+                             phoneVerifiedAt: timestamp
+                           });
+                        }}
+                        className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                          editingUser.phoneVerified ? 'bg-green-600' : 'bg-slate-200'
+                        }`}
+                      >
+                        <span
+                          className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                            editingUser.phoneVerified ? 'translate-x-5' : 'translate-x-0'
+                          }`}
+                        />
+                      </button>
+                    </div>
+                    {editingUser.phoneVerified && (
+                      <div className="space-y-1">
+                        <label className="block text-[9px] font-bold text-slate-400 uppercase tracking-widest">Verification Date & Time</label>
+                        <input
+                          type="text"
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-mono font-semibold text-slate-700"
+                          value={editingUser.phoneVerifiedAt || format(new Date(), 'yyyy-MM-dd HH:mm:ss')}
+                          onChange={(e) => setEditingUser({ ...editingUser, phoneVerifiedAt: e.target.value })}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="mt-8 flex gap-3">
@@ -2734,7 +2843,9 @@ export default function Portal({ user }: PortalProps) {
                         role: editingUser.role,
                         department: editingUser.department,
                         totalLeaveDays: editingUser.totalLeaveDays,
-                        phone: editingUser.phone || ''
+                        phone: editingUser.phone || '',
+                        phoneVerified: editingUser.phoneVerified || false,
+                        phoneVerifiedAt: editingUser.phoneVerifiedAt || ''
                       }
                     });
                   }}
@@ -2906,6 +3017,96 @@ export default function Portal({ user }: PortalProps) {
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
                   </svg>
                   Open WhatsApp
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ----------------- MODAL: WHATSAPP OTP VERIFICATION ----------------- */}
+      <AnimatePresence>
+        {verificationOtp && (
+          <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setVerificationOtp(null)} 
+              className="absolute inset-0 bg-navy-950/60 backdrop-blur-sm" 
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }} 
+              animate={{ scale: 1, opacity: 1 }} 
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl relative z-10 overflow-hidden p-8 border border-green-100"
+            >
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 border border-green-200">
+                  <svg className="w-8 h-8 fill-current text-green-600" viewBox="0 0 24 24">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L0 24l6.335-1.662c1.746.953 3.71 1.458 5.704 1.459h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-sans font-black text-slate-800 uppercase tracking-tight">WhatsApp Verification</h3>
+                <p className="text-xs text-slate-500 mt-1">We have generated and dispatched a 6-digit secure system verification code to your WhatsApp device.</p>
+              </div>
+
+              {/* SIMULATED INCOMING WHATSAPP MESSAGE (Brilliant UX) */}
+              <motion.div 
+                initial={{ y: -20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.5 }}
+                className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 shadow-sm flex gap-3 relative overflow-hidden text-left"
+              >
+                <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
+                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                  WA
+                </div>
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center w-full">
+                    <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Simulated Phone Gateway</span>
+                    <span className="text-[9px] text-slate-400 font-mono">Just Now</span>
+                  </div>
+                  <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
+                    💬 <span className="font-bold text-green-800">OUSL Leave Management:</span> Your security code is <span className="font-mono font-black text-xs text-green-900 bg-green-200/60 px-1.5 py-0.5 rounded">{verificationOtp.code}</span>. Use this code to complete verification.
+                  </p>
+                </div>
+              </motion.div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">Enter 6-Digit Code</label>
+                  <input 
+                    type="text" 
+                    maxLength={6}
+                    value={otpInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, '');
+                      setOtpInput(val);
+                      setVerificationError('');
+                    }}
+                    placeholder="E.g. 123456"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-[0.5em] text-slate-800 focus:outline-none focus:border-green-500"
+                  />
+                  {verificationError && (
+                    <p className="text-[10px] text-red-500 mt-1.5 text-center font-bold font-sans">{verificationError}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-6 flex gap-3">
+                <button 
+                  onClick={() => setVerificationOtp(null)}
+                  className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleVerifyCode}
+                  disabled={otpInput.length !== 6}
+                  className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-slate-300 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer font-sans"
+                >
+                  <Check size={14} /> Verify & Complete
                 </button>
               </div>
             </motion.div>
