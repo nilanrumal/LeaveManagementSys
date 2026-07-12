@@ -88,6 +88,12 @@ export default function Portal({ user }: PortalProps) {
   const [otpInput, setOtpInput] = useState('');
   const [verificationError, setVerificationError] = useState('');
 
+  // WhatsApp verification delivery states
+  const [verificationMethod, setVerificationMethod] = useState<'simulator' | 'callmebot'>('simulator');
+  const [callmebotApiKeyInput, setCallmebotApiKeyInput] = useState('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [otpSendStatus, setOtpSendStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
+
   // WhatsApp post-approval modal state
   const [whatsappModalData, setWhatsappModalData] = useState<{
     employeeName: string;
@@ -98,6 +104,9 @@ export default function Portal({ user }: PortalProps) {
   useEffect(() => {
     if (user && user.phone) {
       setMyPhoneInput(user.phone);
+    }
+    if (user && user.callmebotApiKey) {
+      setCallmebotApiKeyInput(user.callmebotApiKey);
     }
   }, [user]);
 
@@ -114,12 +123,50 @@ export default function Portal({ user }: PortalProps) {
     });
     setOtpInput('');
     setVerificationError('');
+    setOtpSendStatus('idle');
+  };
+
+  const handleDispatchOtp = async () => {
+    if (!verificationOtp) return;
+
+    if (verificationMethod === 'simulator') {
+      setOtpSendStatus('success');
+      return;
+    }
+
+    if (verificationMethod === 'callmebot') {
+      if (!callmebotApiKeyInput.trim()) {
+        setVerificationError("Please enter your CallMeBot API Key to dispatch real WhatsApp messages.");
+        return;
+      }
+      setIsSendingOtp(true);
+      setOtpSendStatus('sending');
+      setVerificationError('');
+      try {
+        const textMessage = `💬 *OUSL Leave Management*:\nYour security verification code is: *${verificationOtp.code}*`;
+        // Make the GET request to CallMeBot API (CORS bypass via mode: 'no-cors' is reliable for dispatching the request)
+        await fetch(`https://api.callmebot.com/whatsapp.php?phone=${verificationOtp.phone}&text=${encodeURIComponent(textMessage)}&apikey=${callmebotApiKeyInput.trim()}`, {
+          method: 'GET',
+          mode: 'no-cors'
+        });
+
+        // Save CallMeBot API key in user's profile
+        await userService.updateProfile(user.uid, { callmebotApiKey: callmebotApiKeyInput.trim() });
+        setOtpSendStatus('success');
+      } catch (e) {
+        console.error('CallMeBot error:', e);
+        setVerificationError("Failed to dispatch code via CallMeBot. Please verify your API Key and internet connection.");
+        setOtpSendStatus('error');
+      } finally {
+        setIsSendingOtp(false);
+      }
+    }
   };
 
   const handleVerifyCode = async () => {
     if (!verificationOtp) return;
     if (otpInput !== verificationOtp.code) {
-      setVerificationError("Verification code mismatch. Please enter the correct code shown in the simulated gateway.");
+      setVerificationError("Verification code mismatch. Please enter the correct code shown in the message.");
       return;
     }
     
@@ -129,7 +176,8 @@ export default function Portal({ user }: PortalProps) {
       await userService.updateProfile(user.uid, { 
         phone: verificationOtp.phone,
         phoneVerified: true,
-        phoneVerifiedAt: nowString
+        phoneVerifiedAt: nowString,
+        callmebotApiKey: callmebotApiKeyInput.trim() || undefined
       });
       setVerificationOtp(null);
       setSavePhoneSuccess(true);
@@ -3048,67 +3096,210 @@ export default function Portal({ user }: PortalProps) {
                   </svg>
                 </div>
                 <h3 className="text-lg font-sans font-black text-slate-800 uppercase tracking-tight">WhatsApp Verification</h3>
-                <p className="text-xs text-slate-500 mt-1">We have generated and dispatched a 6-digit secure system verification code to your WhatsApp device.</p>
+                <p className="text-xs text-slate-500 mt-1">Verify contact authenticity of <strong>+{verificationOtp.phone}</strong> before registration lock.</p>
               </div>
 
-              {/* SIMULATED INCOMING WHATSAPP MESSAGE (Brilliant UX) */}
-              <motion.div 
-                initial={{ y: -20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-6 shadow-sm flex gap-3 relative overflow-hidden text-left"
-              >
-                <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
-                <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  WA
-                </div>
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center w-full">
-                    <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Simulated Phone Gateway</span>
-                    <span className="text-[9px] text-slate-400 font-mono">Just Now</span>
+              {otpSendStatus === 'idle' && (
+                <div className="space-y-4 text-left">
+                  <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">1. Select Verification Delivery Method</span>
+                  
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {/* Method Simulator */}
+                    <button 
+                      type="button" 
+                      onClick={() => { setVerificationMethod('simulator'); setVerificationError(''); }}
+                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
+                        verificationMethod === 'simulator' 
+                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'simulator' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
+                          {verificationMethod === 'simulator' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">System Simulator (Instant Setup)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 pl-6">Recommended for immediate evaluation inside the web container. Code is shown on screen.</p>
+                    </button>
+
+                    {/* Method CallMeBot */}
+                    <button 
+                      type="button" 
+                      onClick={() => { setVerificationMethod('callmebot'); setVerificationError(''); }}
+                      className={`p-4 rounded-2xl border text-left transition-all relative overflow-hidden cursor-pointer ${
+                        verificationMethod === 'callmebot' 
+                          ? 'border-green-500 bg-green-50/55 shadow-sm' 
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className={`w-4 h-4 rounded-full border-4 flex items-center justify-center flex-shrink-0 ${verificationMethod === 'callmebot' ? 'border-green-600 bg-white' : 'border-slate-300'}`}>
+                          {verificationMethod === 'callmebot' && <div className="w-1.5 h-1.5 rounded-full bg-green-600" />}
+                        </div>
+                        <span className="text-xs font-bold text-slate-800">Real WhatsApp Message (CallMeBot Free)</span>
+                      </div>
+                      <p className="text-[10px] text-slate-500 pl-6">Receive the verification code directly as an actual message on your phone's WhatsApp device.</p>
+                    </button>
                   </div>
-                  <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
-                    💬 <span className="font-bold text-green-800">OUSL Leave Management:</span> Your security code is <span className="font-mono font-black text-xs text-green-900 bg-green-200/60 px-1.5 py-0.5 rounded">{verificationOtp.code}</span>. Use this code to complete verification.
-                  </p>
-                </div>
-              </motion.div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">Enter 6-Digit Code</label>
-                  <input 
-                    type="text" 
-                    maxLength={6}
-                    value={otpInput}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/[^0-9]/g, '');
-                      setOtpInput(val);
-                      setVerificationError('');
-                    }}
-                    placeholder="E.g. 123456"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-[0.5em] text-slate-800 focus:outline-none focus:border-green-500"
-                  />
-                  {verificationError && (
-                    <p className="text-[10px] text-red-500 mt-1.5 text-center font-bold font-sans">{verificationError}</p>
+                  {verificationMethod === 'callmebot' && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-3 space-y-3"
+                    >
+                      <div className="space-y-1">
+                        <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest">Paste CallMeBot API Key</label>
+                        <input 
+                          type="text" 
+                          placeholder="E.g. 123456" 
+                          className="w-full bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-green-500"
+                          value={callmebotApiKeyInput}
+                          onChange={(e) => {
+                            setCallmebotApiKeyInput(e.target.value);
+                            setVerificationError('');
+                          }}
+                        />
+                      </div>
+                      <div className="bg-amber-50/75 border border-amber-100 rounded-xl p-3 text-[10px] text-amber-800 space-y-1.5">
+                        <p className="font-bold text-[11px]">🔑 Don't have an API key? Get it free in 15 seconds:</p>
+                        <ol className="list-decimal list-inside space-y-1 text-slate-700">
+                          <li>Click this direct link: <a href="https://wa.me/34671311602?text=I+allow+callmebot+to+send+me+messages" target="_blank" rel="noopener noreferrer" className="font-bold underline text-green-700 hover:text-green-800">Get Free WhatsApp API Key</a></li>
+                          <li>Click <strong>Send</strong> inside WhatsApp (sends "I allow callmebot to send me messages").</li>
+                          <li>It replies instantly with your <strong>API Key</strong>. Copy & paste it above!</li>
+                        </ol>
+                      </div>
+                    </motion.div>
                   )}
-                </div>
-              </div>
 
-              <div className="mt-6 flex gap-3">
-                <button 
-                  onClick={() => setVerificationOtp(null)}
-                  className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleVerifyCode}
-                  disabled={otpInput.length !== 6}
-                  className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-slate-300 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer font-sans"
-                >
-                  <Check size={14} /> Verify & Complete
-                </button>
-              </div>
+                  {verificationError && (
+                    <p className="text-[10px] text-red-500 mt-2 font-bold font-sans text-center">{verificationError}</p>
+                  )}
+
+                  <div className="mt-6 flex gap-3">
+                    <button 
+                      onClick={() => setVerificationOtp(null)}
+                      className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleDispatchOtp}
+                      className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer font-sans"
+                    >
+                      Dispatch Verification Code
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {otpSendStatus === 'sending' && (
+                <div className="py-12 flex flex-col items-center justify-center space-y-4">
+                  <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+                  <p className="text-xs text-slate-500 font-bold font-sans animate-pulse">Dispatched secure cryptographic payload...</p>
+                </div>
+              )}
+
+              {(otpSendStatus === 'success' || otpSendStatus === 'error') && (
+                <div className="space-y-4">
+                  
+                  {/* SIMULATED INCOMING WHATSAPP MESSAGE */}
+                  {verificationMethod === 'simulator' && (
+                    <motion.div 
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 shadow-sm flex gap-3 relative overflow-hidden text-left"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
+                      <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        WA
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between items-center w-full">
+                          <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider">Simulated Phone Gateway</span>
+                          <span className="text-[9px] text-slate-400 font-mono">Just Now</span>
+                        </div>
+                        <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
+                          💬 <span className="font-bold text-green-800">OUSL Leave Management:</span> Your security code is <span className="font-mono font-black text-xs text-green-900 bg-green-200/60 px-1.5 py-0.5 rounded">{verificationOtp.code}</span>. Use this code to complete verification.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {verificationMethod === 'callmebot' && otpSendStatus === 'success' && (
+                    <motion.div 
+                      initial={{ y: -20, opacity: 0 }}
+                      animate={{ y: 0, opacity: 1 }}
+                      className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 shadow-sm flex gap-3 relative overflow-hidden text-left animate-pulse"
+                    >
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-green-500" />
+                      <div className="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+                        WA
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] font-bold text-green-700 uppercase tracking-wider block">REAL DISPATCH SUCCESS</span>
+                        <p className="text-[11px] text-slate-800 font-semibold leading-relaxed">
+                          💬 Real WhatsApp OTP dispatched to your device <strong>+{verificationOtp.phone}</strong>! Check your WhatsApp app.
+                        </p>
+                      </div>
+                    </motion.div>
+                  )}
+
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 text-center">Enter 6-Digit Code</label>
+                    <input 
+                      type="text" 
+                      maxLength={6}
+                      value={otpInput}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^0-9]/g, '');
+                        setOtpInput(val);
+                        setVerificationError('');
+                      }}
+                      placeholder="E.g. 123456"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center text-lg font-mono font-bold tracking-[0.5em] text-slate-800 focus:outline-none focus:border-green-500"
+                    />
+                    {verificationError && (
+                      <p className="text-[10px] text-red-500 mt-1.5 text-center font-bold font-sans">{verificationError}</p>
+                    )}
+                  </div>
+
+                  <div className="mt-6 flex gap-3">
+                    <button 
+                      onClick={() => setVerificationOtp(null)}
+                      className="flex-1 bg-slate-100 font-bold hover:bg-slate-200 py-3 rounded-2xl text-xs text-slate-600"
+                    >
+                      Cancel
+                    </button>
+                    <button 
+                      onClick={handleVerifyCode}
+                      disabled={otpInput.length !== 6 || isSavingPhone}
+                      className="flex-1 bg-green-600 text-white font-bold hover:bg-green-700 disabled:bg-slate-300 py-3 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer font-sans"
+                    >
+                      {isSavingPhone ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" /> Verifying...
+                        </>
+                      ) : (
+                        <>
+                          <Check size={14} /> Verify & Complete
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className="text-center pt-2">
+                    <button 
+                      type="button" 
+                      onClick={() => { setOtpSendStatus('idle'); setOtpInput(''); }}
+                      className="text-[10px] text-indigo-600 hover:underline font-bold"
+                    >
+                      ← Dispatch again or change delivery method
+                    </button>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </div>
         )}

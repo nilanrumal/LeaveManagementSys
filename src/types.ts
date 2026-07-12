@@ -27,6 +27,7 @@ export interface UserProfile {
   phone?: string;
   phoneVerified?: boolean;
   phoneVerifiedAt?: string;
+  callmebotApiKey?: string;
 }
 
 export type LeaveType = 'Annual' | 'Sick' | 'Personal' | 'Maternity/Paternity' | 'Study';
