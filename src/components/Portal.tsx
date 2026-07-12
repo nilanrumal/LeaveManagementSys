@@ -43,7 +43,7 @@ interface PortalProps {
 }
 
 export default function Portal({ user }: PortalProps) {
-  const { t } = useContext(LanguageContext);
+  const { lang, t } = useContext(LanguageContext);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports'>('dashboard');
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
@@ -1235,7 +1235,7 @@ export default function Portal({ user }: PortalProps) {
           const startDateStr = format(new Date(approvedLeave.startDate), 'yyyy-MM-dd');
           const endDateStr = format(new Date(approvedLeave.endDate), 'yyyy-MM-dd');
           
-          const defaultMsg = `Hello ${approvedLeave.employeeName}, your leave request (${approvedLeave.type} Leave) from ${startDateStr} to ${endDateStr} has been APPROVED! 📚 - Jaffna University Leave System`;
+          const defaultMsg = `Hello ${approvedLeave.employeeName}, your leave request (${approvedLeave.type} Leave) from ${startDateStr} to ${endDateStr} has been APPROVED! 📚 - OUSL Leave Management`;
           
           setWhatsappModalData({
             employeeName: approvedLeave.employeeName,
@@ -1456,20 +1456,37 @@ export default function Portal({ user }: PortalProps) {
               <div className="mt-6 p-4 rounded-2xl bg-orange-50/50 border border-orange-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-1">
                   <span className="block text-[10px] font-bold text-orange-500 uppercase tracking-widest">My WhatsApp Notification Number</span>
-                  <p className="text-xs text-slate-500">Provide your active WhatsApp number with country code (e.g. 94771234567) to receive instant leave status updates.</p>
+                  <p className="text-xs text-slate-500 font-medium">Provide your active WhatsApp number with country code (e.g. 94771234567) to receive instant leave status updates.</p>
+                  {user.phone && user.phone.trim() !== '' && (
+                    <span className="text-[10px] font-bold text-amber-600 flex items-center gap-1 mt-1 font-sans">
+                      <Lock size={11} />
+                      {lang === 'ta' 
+                        ? 'சுயவிவரம் சேமிக்கப்பட்டு பூட்டப்பட்டது. மாற்றியமைக்க நிர்வாகியைத் தொடர்பு கொள்ளவும்.' 
+                        : lang === 'si' 
+                        ? 'සුරැකි සහ අගුළු දමා ඇත. සංශෝධනය කිරීමට පරිපාලක අමතන්න.' 
+                        : 'Saved & locked. Contact Admin to make any changes.'}
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-2 max-w-sm w-full sm:w-auto">
                   <input
                     type="text"
                     placeholder="e.g. 94771234567"
-                    className="bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-orange-500 w-full sm:w-48"
+                    disabled={!!(user.phone && user.phone.trim() !== '')}
+                    className={`border rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-slate-800 focus:outline-none focus:border-orange-500 w-full sm:w-48 ${
+                      user.phone && user.phone.trim() !== '' ? 'bg-slate-100 border-slate-200 text-slate-400' : 'bg-white border-slate-200'
+                    }`}
                     value={myPhoneInput}
                     onChange={(e) => setMyPhoneInput(e.target.value)}
                   />
                   <button
                     onClick={handleSaveMyPhone}
-                    disabled={isSavingPhone}
-                    className="bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 cursor-pointer whitespace-nowrap flex items-center gap-1.5"
+                    disabled={isSavingPhone || !!(user.phone && user.phone.trim() !== '')}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition active:scale-95 whitespace-nowrap flex items-center gap-1.5 ${
+                      user.phone && user.phone.trim() !== ''
+                        ? 'bg-slate-200 text-slate-400 border border-slate-300 cursor-not-allowed'
+                        : 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer'
+                    }`}
                   >
                     {isSavingPhone ? (
                       <>
@@ -1479,6 +1496,10 @@ export default function Portal({ user }: PortalProps) {
                       <>
                         <Check size={12} /> Saved!
                       </>
+                    ) : user.phone && user.phone.trim() !== '' ? (
+                      <>
+                        <Lock size={12} /> Locked
+                      </>
                     ) : (
                       'Save Number'
                     )}
@@ -1486,12 +1507,16 @@ export default function Portal({ user }: PortalProps) {
                 </div>
               </div>
 
-              <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+              <div className="mt-8 pt-6 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-medium">
                 <div className="flex items-center gap-2">
                    <Lock size={14} className="text-slate-400" />
-                   <span>Contact details can be self-edited above. Official academic parameters are immutable.</span>
+                   <span>
+                     {user.phone && user.phone.trim() !== '' 
+                       ? 'Official parameters and contact details are locked. Contact Administrator for modifications.' 
+                       : 'Contact details can be self-edited above. Official academic parameters are immutable.'}
+                   </span>
                 </div>
-                <span>Secured via Jaffna University Network Security</span>
+                <span>Secured via OUSL Network Security System</span>
               </div>
             </div>
 
