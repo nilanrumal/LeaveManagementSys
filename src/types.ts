@@ -49,6 +49,8 @@ export interface LeaveRequest {
   handledAt?: number;
   adminComment?: string;
   approvedBy?: string;
+  employeeEmail?: string;
+  employeePhone?: string;
 }
 
 export interface AppLanguage {

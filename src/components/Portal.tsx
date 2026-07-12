@@ -110,6 +110,7 @@ export default function Portal({ user }: PortalProps) {
 
   const [notificationSubTab, setNotificationSubTab] = useState<'whatsapp' | 'email'>('whatsapp');
   const [copiedText, setCopiedText] = useState(false);
+  const [hasDispatchedWhatsApp, setHasDispatchedWhatsApp] = useState(false);
 
   useEffect(() => {
     if (user && user.phone) {
@@ -1296,8 +1297,8 @@ export default function Portal({ user }: PortalProps) {
         const targetLeave = leaves.find(l => l.id === showCommentModal.id);
         if (targetLeave) {
           const empProfile = allUsers.find(u => u.uid === targetLeave.employeeId);
-          const empPhone = empProfile?.phone || '';
-          const empEmail = empProfile?.email || '';
+          const empPhone = targetLeave.employeePhone || empProfile?.phone || '';
+          const empEmail = targetLeave.employeeEmail || empProfile?.email || '';
           const startDateStr = format(new Date(targetLeave.startDate), 'yyyy-MM-dd');
           const endDateStr = format(new Date(targetLeave.endDate), 'yyyy-MM-dd');
           
@@ -1348,6 +1349,7 @@ Open University of Sri Lanka`;
             status: showCommentModal.status,
             reason: remarks
           });
+          setHasDispatchedWhatsApp(false);
           setNotificationSubTab('whatsapp');
         }
       }
@@ -3119,10 +3121,19 @@ Open University of Sri Lanka`;
                   </div>
                 ) : (
                   <div className="space-y-4">
+                    {hasDispatchedWhatsApp && (
+                      <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-2xl p-4 flex gap-3 shadow-sm">
+                        <span className="text-base">✅</span>
+                        <div>
+                          <strong>WhatsApp Dispatch Initiated!</strong> Now, click the blue <strong>"Launch Institutional Mail"</strong> button below to open your mail client and send the official approval email.
+                        </div>
+                      </div>
+                    )}
+
                     <div className="bg-blue-50/55 rounded-2xl p-4 border border-blue-100 flex gap-3 text-xs text-blue-800">
                       <span className="text-base">✉️</span>
                       <div>
-                        <strong>Institutional Mailto Protocol:</strong> Pre-formats a formal administrative memo. Opens directly in your desktop email client (Outlook, Thunderbird, Mail, etc.) pre-addressed.
+                        <strong>Institutional Mailto Protocol:</strong> Pre-formats a formal academic memo. Opens directly in your desktop or web email client pre-addressed.
                       </div>
                     </div>
 
@@ -3196,7 +3207,8 @@ Open University of Sri Lanka`;
                         const cleanPhone = whatsappModalData.phone.replace(/[^0-9]/g, '');
                         const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(whatsappModalData.message)}`;
                         window.open(url, '_blank');
-                        setWhatsappModalData(null);
+                        setHasDispatchedWhatsApp(true);
+                        setNotificationSubTab('email');
                       }}
                       disabled={!whatsappModalData.phone.trim()}
                       className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-1.5 shadow-md active:scale-95 cursor-pointer disabled:opacity-50"
@@ -3637,7 +3649,9 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
         reason: formData.reason,
         actingEmployeeNo: formData.actingEmployeeNo.trim(),
         status: submitStatus,
-        adminComment: autoComment
+        adminComment: autoComment,
+        employeeEmail: user.email,
+        employeePhone: user.phone || ''
       });
       setSubmitted(true);
       setTimeout(() => {
