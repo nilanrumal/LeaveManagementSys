@@ -131,7 +131,7 @@ export const userService = {
   async updateProfile(uid: string, data: Partial<UserProfile>) {
     const path = `users/${uid}`;
     try {
-      await updateDoc(doc(db, 'users', uid), data);
+      await setDoc(doc(db, 'users', uid), data, { merge: true });
     } catch (e) {
       handleFirestoreError(e, OperationTypeLocal.WRITE, path);
     }

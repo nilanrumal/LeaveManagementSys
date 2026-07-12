@@ -1301,12 +1301,13 @@ export default function Portal({ user }: PortalProps) {
           const startDateStr = format(new Date(targetLeave.startDate), 'yyyy-MM-dd');
           const endDateStr = format(new Date(targetLeave.endDate), 'yyyy-MM-dd');
           
+          const durationDays = Math.ceil((new Date(targetLeave.endDate).getTime() - new Date(targetLeave.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1;
           const statusText = showCommentModal.status === 'Approved' ? 'APPROVED' : 'REJECTED';
           const emoji = showCommentModal.status === 'Approved' ? '✅' : '❌';
           const remarks = commentText.trim() || 'No specific comment provided.';
           
           // Formulate premium WhatsApp body
-          const whatsappMsg = `💬 *OUSL Leave Management* (Jaffna Campus)\n\nDear *${targetLeave.employeeName}*,\n\nYour leave request for *${targetLeave.type} Leave* from *${startDateStr}* to *${endDateStr}* (${targetLeave.duration} Day${targetLeave.duration > 1 ? 's' : ''}) has been *${statusText}* ${emoji} by the administrator.\n\n📝 *Comments/Reason*:\n"${remarks}"\n\nKind regards,\n_Office of Academic Leave, OUSL_`;
+          const whatsappMsg = `💬 *OUSL Leave Management* (Jaffna Campus)\n\nDear *${targetLeave.employeeName}*,\n\nYour leave request for *${targetLeave.type} Leave* from *${startDateStr}* to *${endDateStr}* (${durationDays} Day${durationDays > 1 ? 's' : ''}) has been *${statusText}* ${emoji} by the administrator.\n\n📝 *Comments/Reason*:\n"${remarks}"\n\nKind regards,\n_Office of Academic Leave, OUSL_`;
 
           // Formulate premium email subject & body
           const emailSubject = `[Leave Decision] Request for ${targetLeave.type} Leave: ${statusText}`;
@@ -1323,7 +1324,7 @@ Leave Details:
 - Employee No: ${targetLeave.employeeNo}
 - Leave Type: ${targetLeave.type}
 - Leave Period: ${startDateStr} to ${endDateStr}
-- Duration: ${targetLeave.duration} Day(s)
+- Duration: ${durationDays} Day(s)
 - Current Status: ${statusText} ${emoji}
 
 --------------------------------------------------
