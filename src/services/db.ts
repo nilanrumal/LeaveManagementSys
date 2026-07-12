@@ -15,7 +15,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { LeaveRequest, UserProfile, OperationType } from '../types';
+import { LeaveRequest, UserProfile, OperationType, LeaveStatus } from '../types';
 
 enum OperationTypeLocal {
   CREATE = 'create',
@@ -148,12 +148,13 @@ export const userService = {
 };
 
 export const leaveService = {
-  async submitRequest(request: Omit<LeaveRequest, 'id' | 'submittedAt' | 'status'>) {
+  async submitRequest(request: Omit<LeaveRequest, 'id' | 'submittedAt' | 'status'> & { status?: LeaveStatus; adminComment?: string }) {
     const path = 'leaveRequests';
     try {
       await addDoc(collection(db, 'leaveRequests'), {
         ...request,
-        status: 'Pending',
+        status: request.status || 'Pending',
+        adminComment: request.adminComment || '',
         submittedAt: serverTimestamp()
       });
     } catch (e) {

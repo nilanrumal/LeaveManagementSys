@@ -32,7 +32,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { leaveService, userService, systemService } from '../services/db';
-import { LeaveRequest, UserProfile, LeaveType, UserRole } from '../types';
+import { LeaveRequest, UserProfile, LeaveType, UserRole, LeaveStatus } from '../types';
 import { format } from 'date-fns';
 import { LanguageContext } from '../App';
 import EnrollModal from './EnrollModal';
@@ -2993,7 +2993,7 @@ const ProfileDisplayField = ({ label, value, highlight, badge }: { label: string
 
 // Leave request Form Modal (including Acting Person verification errorDialog and checker)
 const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProfile, onClose: () => void, allUsers: UserProfile[], leaves: LeaveRequest[] }) => {
-  const { t } = useContext(LanguageContext);
+  const { lang, t } = useContext(LanguageContext);
   const today = new Date().toISOString().split('T')[0];
   const [formData, setFormData] = useState({
     startDate: '',
@@ -3004,6 +3004,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [isAutoRejected, setIsAutoRejected] = useState(false);
   const [error, setError] = useState('');
   
   // Custom Error Dialog for non-existent Acting employee No
@@ -3077,6 +3078,16 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
       return;
     }
 
+    const isDeptMismatch = matchedProfile.department?.trim().toLowerCase() !== user.department?.trim().toLowerCase();
+    let submitStatus: LeaveStatus = 'Pending';
+    let autoComment = '';
+
+    if (isDeptMismatch) {
+      submitStatus = 'Rejected';
+      autoComment = `[SYSTEM AUTO-REJECT] Acting Personnel Department Mismatch. Nominated acting officer "${matchedProfile.name}" belongs to "${matchedProfile.department}", which does not match your department ("${user.department}"). All acting staff must be from the same department.`;
+      setIsAutoRejected(true);
+    }
+
     try {
       await leaveService.submitRequest({
         employeeId: user.uid,
@@ -3087,12 +3098,14 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
         endDate: formData.endDate,
         type: formData.type,
         reason: formData.reason,
-        actingEmployeeNo: formData.actingEmployeeNo.trim()
+        actingEmployeeNo: formData.actingEmployeeNo.trim(),
+        status: submitStatus,
+        adminComment: autoComment
       });
       setSubmitted(true);
       setTimeout(() => {
         onClose();
-      }, 2500);
+      }, isDeptMismatch ? 5000 : 2500);
     } catch (err: any) {
       console.error('Submission failed:', err);
       setError('Failed to submit request. Please try again.');
@@ -3129,17 +3142,41 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
 
         {submitted ? (
           <div className="p-16 text-center">
-            <motion.div 
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-emerald-500/15"
-            >
-              <Check size={28} strokeWidth={3} />
-            </motion.div>
-            <h3 className="text-lg font-sans font-black uppercase text-slate-800 mb-2">{t.requestLogged}</h3>
-            <p className="text-slate-400 max-w-xs mx-auto text-xs leading-relaxed mb-6">
-              {t.requestLoggedDesc}
-            </p>
+            {isAutoRejected ? (
+              <>
+                <motion.div 
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-16 h-16 bg-red-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-red-500/15"
+                >
+                  <X size={28} strokeWidth={3} />
+                </motion.div>
+                <h3 className="text-lg font-sans font-black uppercase text-red-600 mb-2">
+                  {lang === 'ta' ? 'தானியங்கி நிராகரிப்பு!' : lang === 'si' ? 'ස්වයංක්‍රීයව ප්‍රතික්ෂේප විය!' : 'Auto-Rejected!'}
+                </h3>
+                <p className="text-slate-500 max-w-sm mx-auto text-xs leading-relaxed mb-6 font-medium">
+                  {lang === 'ta' 
+                    ? 'பதிலாள் அதிகாரி வேறு துறையைச் சேர்ந்தவர் என்பதால் இந்த விடுப்பு கோரிக்கை முறைமையால் தானாகவே நிராகரிக்கப்பட்டது. விவரங்களை உங்கள் விடுப்பு வரலாற்றில் பார்க்கவும்.'
+                    : lang === 'si'
+                    ? 'වැඩබලන නිලධාරියා වෙනත් දෙපාර්තමේන්තුවක බැවින් මෙම නිවාඩු ඉල්ලීම පද්ධතිය විසින් ස්වයංක්‍රීයව ප්‍රතික්ෂේප කරන ලදී. විස්තර ඔබගේ නිවාඩු ඉතිහාසයෙන් බලාගන්න.'
+                    : 'This leave request has been automatically rejected because the nominated acting officer belongs to a different department. Please review the details in your Leave History.'}
+                </p>
+              </>
+            ) : (
+              <>
+                <motion.div 
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto mb-6 shadow-md shadow-emerald-500/15"
+                >
+                  <Check size={28} strokeWidth={3} />
+                </motion.div>
+                <h3 className="text-lg font-sans font-black uppercase text-slate-800 mb-2">{t.requestLogged}</h3>
+                <p className="text-slate-400 max-w-xs mx-auto text-xs leading-relaxed mb-6">
+                  {t.requestLoggedDesc}
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-8 space-y-5">
