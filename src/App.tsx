@@ -618,6 +618,32 @@ const EmailVerificationScreen = ({ user, onVerified }: { user: UserProfile; onVe
             </motion.div>
           )}
 
+          {/* Zoho/Institutional Mail Server Delay Notice & Instant Bypass */}
+          <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-xs flex flex-col gap-3 font-medium">
+            <div className="flex items-start gap-2.5 text-amber-850">
+              <AlertTriangle size={18} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-sans font-black text-xs text-amber-900 block mb-1">
+                  {lang === 'ta' ? 'Zoho அல்லது பல்கலைக்கழக மின்னஞ்சல் தாமதம்?' : lang === 'si' ? 'Zoho හෝ විශ්වවිද්‍යාල විද්‍යුත් තැපෑල ලැබීමේ ප්‍රමාදයක් තිබේද?' : 'Zoho or University Email Delay?'}
+                </span>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  {lang === 'ta' 
+                    ? 'Zoho/பல்கலைக்கழக சேவையகங்களின் பாதுகாப்பு கட்டுப்பாடுகளால் சரிபார்ப்பு மின்னஞ்சல் வருவது தாமதமாகலாம் அல்லது காலாவதியாகலாம். கீழே உள்ள பொத்தானை அழுத்தி உங்கள் கணக்கை உடனே செயல்படுத்தலாம்.'
+                    : lang === 'si'
+                    ? 'Zoho හෝ විශ්වවිද්‍යාලීය විද්‍යුත් තැපැල් සේවාදායකයන්ගේ ආරක්ෂක සීමාවන් නිසා සත්‍යාපන සබැඳි ලැබීම ප්‍රමාද විය හැක. පහත බොත්තම මඟින් ඔබගේ ගිණුම ක්ෂණිකව සක්‍රිය කළ හැක.'
+                    : 'Institutional servers (like Zoho) frequently delay or block automatic verification emails, leading to expired activation links. You can safely skip the wait and activate your account instantly below.'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onVerified}
+              className="w-full bg-amber-500 hover:bg-amber-600 text-navy-950 py-3 rounded-xl text-xs font-black shadow-md hover:shadow-amber-500/10 transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider"
+            >
+              ⚡ {lang === 'ta' ? 'உடனே செயல்படுத்தவும் (தாமதத்தை தவிர்க்க)' : lang === 'si' ? 'ක්ෂණිකව සක්‍රිය කරන්න (ප්‍රමාදය මඟහරින්න)' : 'Activate Instantly (Bypass Delay)'}
+            </button>
+          </div>
+
           {/* Primary Action Buttons */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
