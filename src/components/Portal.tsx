@@ -41,6 +41,8 @@ import { format } from 'date-fns';
 import { LanguageContext } from '../App';
 import EnrollModal from './EnrollModal';
 import { jsPDF } from 'jspdf';
+import SubmissionHub from './SubmissionHub';
+import { BookOpen } from 'lucide-react';
 
 interface PortalProps {
   user: UserProfile;
@@ -48,7 +50,7 @@ interface PortalProps {
 
 export default function Portal({ user }: PortalProps) {
   const { lang, t } = useContext(LanguageContext);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports' | 'docs'>('dashboard');
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -1451,6 +1453,14 @@ Open University of Sri Lanka`;
               }} 
             />
           )}
+
+          {/* Academic Documentation & System Design Submission Tab */}
+          <SidebarLink 
+            icon={BookOpen} 
+            label={lang === 'ta' ? 'கல்வி சமர்ப்பிப்பு' : lang === 'si' ? 'විශ්වවිද්‍යාල ඉදිරිපත් කිරීම' : 'Academic Submission Hub'} 
+            active={activeTab === 'docs'} 
+            onClick={() => setActiveTab('docs')} 
+          />
         </nav>
 
         {/* User Card */}
@@ -2716,6 +2726,11 @@ Open University of Sri Lanka`;
             </div>
           </div>
           </div>
+        )}
+
+        {/* -------------------- TAB: ACADEMIC SYSTEM DOCS (ALL USERS) -------------------- */}
+        {activeTab === 'docs' && (
+          <SubmissionHub />
         )}
       </main>
 
