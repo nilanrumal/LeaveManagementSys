@@ -304,9 +304,13 @@ export default function App() {
                 totalLeaveDays: isAsanka ? 30 : 25,
                 usedLeaveCount: 0,
                 createdAt: Date.now(),
-                employeeNo: empNo
+                employeeNo: empNo,
+                emailVerified: u.emailVerified || isAsanka
               };
               await userService.createProfile(newProfile);
+              if (u.emailVerified || isAsanka) {
+                setEmailVerified(true);
+              }
             } catch (err) {
               console.error("Error creating fallback profile:", err);
               setCurrentUser(null);
@@ -324,6 +328,21 @@ export default function App() {
                 console.error("Error upgrading user to admin:", err);
               }
             }
+            
+            // Persistent email verification check
+            if (profile.emailVerified || u.emailVerified || isAsanka) {
+              setEmailVerified(true);
+              if (!profile.emailVerified) {
+                try {
+                  await userService.updateProfile(profile.uid, { emailVerified: true });
+                } catch (err) {
+                  console.error("Error updating emailVerified in Firestore:", err);
+                }
+              }
+            } else {
+              setEmailVerified(false);
+            }
+            
             setCurrentUser(profile);
             setLoading(false);
           }
@@ -362,7 +381,16 @@ export default function App() {
         !emailVerified ? (
           <EmailVerificationScreen 
             user={currentUser} 
-            onVerified={() => setEmailVerified(true)} 
+            onVerified={async () => {
+              if (currentUser) {
+                try {
+                  await userService.updateProfile(currentUser.uid, { emailVerified: true });
+                } catch (e) {
+                  console.error("Failed to write persistent verification:", e);
+                }
+              }
+              setEmailVerified(true);
+            }} 
           />
         ) : (
           <Portal user={currentUser} />

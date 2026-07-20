@@ -27,6 +27,7 @@ export interface UserProfile {
   phone?: string;
   phoneVerified?: boolean;
   phoneVerifiedAt?: string;
+  emailVerified?: boolean;
   callmebotApiKey?: string;
 }
 
