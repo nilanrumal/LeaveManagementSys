@@ -250,15 +250,15 @@ export const systemService = {
     return onSnapshot(docRef, (snap) => {
       if (snap.exists()) {
         const data = snap.data();
-        if (data && typeof data.sliderImage === 'string') {
+        if (data && typeof data.sliderImage === 'string' && !data.sliderImage.includes('1541339907198')) {
           callback(data.sliderImage);
           return;
         }
       }
-      callback("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+      callback("https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=2069&q=80");
     }, (e) => {
       console.error('Error listening to slider image:', e);
-      callback("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+      callback("https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=2069&q=80");
     });
   }
 };

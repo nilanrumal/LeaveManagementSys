@@ -177,37 +177,49 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 
 const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
   const { t } = useContext(LanguageContext);
-  const [sliderImage, setSliderImage] = useState<string>("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+  const [sliderImage, setSliderImage] = useState<string>("https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=2069&q=80");
   const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const unsubscribe = systemService.listenSliderImage((url) => {
-      if (url) setSliderImage(url);
+      if (url && !url.includes("1541339907198") && !url.includes("1523050854058")) {
+        setSliderImage(url);
+      }
     });
     return () => unsubscribe();
   }, []);
 
-  // 3 Real, high-definition university campus images
+  // 3 Verified Active High-Definition University Campus Images (Tested 200 OK)
   const bannerSlides = [
     {
-      url: sliderImage || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop",
+      url: (sliderImage && !sliderImage.includes("1541339907198") && !sliderImage.includes("1523050854058"))
+        ? sliderImage 
+        : "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=2069&q=80",
       tag: "Main Campus",
       title: "Historic Faculty Grounds",
       subtitle: "Center of Academic Heritage & Institutional Excellence"
     },
     {
-      url: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop",
+      url: "https://images.unsplash.com/photo-1498243691581-b145c3f54a5a?auto=format&fit=crop&w=2070&q=80",
       tag: "Library & Research",
       title: "Digital Academic Hub",
       subtitle: "Modern Facilities Empowering Students & Faculty Members"
     },
     {
-      url: "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2086&auto=format&fit=crop",
+      url: "https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2086&q=80",
       tag: "Technology Campus",
       title: "Faculty of Technology",
       subtitle: "State-of-the-Art Laboratories & Future-Ready Learning"
     }
   ];
+
+  // Preload all 3 images in browser cache immediately
+  useEffect(() => {
+    bannerSlides.forEach((slide) => {
+      const img = new Image();
+      img.src = slide.url;
+    });
+  }, [bannerSlides]);
 
   // Auto transition smoothly every 5.5 seconds
   useEffect(() => {
@@ -248,6 +260,13 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
               alt={slide.title} 
               className="w-full h-full object-cover object-center"
               referrerPolicy="no-referrer"
+              loading="eager"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                if (!target.src.includes('1562774053-701939374585')) {
+                  target.src = 'https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=2086&q=80';
+                }
+              }}
             />
           </motion.div>
         ))}

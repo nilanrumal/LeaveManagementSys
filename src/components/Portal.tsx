@@ -2705,7 +2705,7 @@ Open University of Sri Lanka`;
               <div className="relative rounded-2xl overflow-hidden bg-navy-950 border border-slate-200 aspect-[21/9] flex items-center p-6 shadow-inner group">
                 <div className="absolute inset-0 z-0">
                   <img 
-                    src={sliderImageInput || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop"} 
+                    src={sliderImageInput || "https://images.unsplash.com/photo-1541829070764-84a7d30dd3f3?auto=format&fit=crop&w=2069&q=80"} 
                     alt="Slider Preview" 
                     className="w-full h-full object-cover opacity-40 scale-105 transition-all duration-300 group-hover:scale-100"
                     referrerPolicy="no-referrer"
