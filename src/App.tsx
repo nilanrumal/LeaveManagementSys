@@ -907,7 +907,23 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
       }
       onClose();
     } catch (err: any) {
-      setError(err.message);
+      const code = err.code || '';
+      const msg = err.message || '';
+      if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || msg.includes('invalid-credential') || msg.includes('user-not-found')) {
+        setError("Invalid email or password. If this is a new staff member, please click 'Request Access' below to register first.");
+      } else if (code === 'auth/wrong-password') {
+        setError("Incorrect password. Please verify your credentials or click 'Forgot Password?'.");
+      } else if (code === 'auth/email-already-in-use') {
+        setError("An account with this email already exists. Please select 'Secure Login' instead.");
+      } else if (code === 'auth/weak-password') {
+        setError("Password should be at least 6 characters long.");
+      } else if (code === 'auth/invalid-email') {
+        setError("Please enter a valid university email address.");
+      } else if (code === 'auth/unauthorized-domain') {
+        setError("Domain not authorized. Please add your domain in Firebase Console > Authentication > Settings > Authorized domains.");
+      } else {
+        setError(msg || "Authentication failed. Please check your credentials.");
+      }
     } finally {
       isRegistering = false;
       setLoading(false);
@@ -943,7 +959,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
                  <span>Password Reset Sent!</span>
                </div>
                <p className="font-normal text-slate-600 mt-1 pl-9">
-                 A reset link was sent to <strong>{email}</strong>. Use the link in your email to change your password to <strong>Asaka7788</strong>, then return here to log in.
+                 A password reset link has been sent to <strong>{email}</strong>. Please check your inbox (and spam folder) to set your new password, then return here to log in.
                </p>
             </motion.div>
           )}
