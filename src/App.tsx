@@ -36,6 +36,7 @@ import { UserProfile, UserRole } from './types';
 import Portal from './components/Portal';
 
 import { translations, Language, Translation } from './translations';
+import campusStudentImg from './assets/images/campus_student_books_1789912198579.jpg';
 
 // --- Contexts ---
 export const LanguageContext = createContext<{ 
@@ -185,42 +186,116 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
   }, []);
 
   return (
-    <section className="relative h-[85vh] flex items-center bg-navy-950 overflow-hidden">
+    <section className="relative min-h-[90vh] flex items-center bg-navy-950 overflow-hidden pt-28 pb-16 lg:py-0">
       <div className="absolute inset-0 z-0">
         <img 
           src={sliderImage} 
           alt="University" 
-          className="w-full h-full object-cover opacity-40 scale-105 transition-all duration-700"
+          className="w-full h-full object-cover opacity-30 scale-105 transition-all duration-700"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/90 to-navy-950/60" />
       </div>
+      
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 w-full animate-fade-in">
-        <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-          <div className="inline-block px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-widest mb-6 border border-amber-500/20">
-            {t.academicExcellence}
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-sans font-black text-white mb-6 tracking-tight leading-[1.1] uppercase">
-            {t.title}
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl text-slate-200 max-w-2xl mb-10 font-medium leading-relaxed">
-            {t.subtitle}.
-          </p>
-          <div className="flex flex-wrap gap-4">
-             <button 
-              onClick={onOpenPortal}
-              className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:shadow-amber-500/20 transition-all cursor-pointer"
-             >
-              {t.enterPortalGateway}
-             </button>
-             <button 
-              onClick={onOpenPortal}
-              className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-white/20 transition-all cursor-pointer"
-             >
-              {t.staffAuthenticator}
-             </button>
-          </div>
-        </motion.div>
+        <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+          {/* Left Column: Heading & Calls to Action */}
+          <motion.div 
+            initial={{ opacity: 0, y: 15 }} 
+            animate={{ opacity: 1, y: 0 }} 
+            transition={{ duration: 0.6 }}
+            className="lg:col-span-7"
+          >
+            <div className="inline-block px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-widest mb-6 border border-amber-500/20">
+              {t.academicExcellence}
+            </div>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-sans font-black text-white mb-6 tracking-tight leading-[1.1] uppercase">
+              {t.title}
+            </h1>
+            <p className="text-base sm:text-lg text-slate-200 max-w-xl mb-8 font-medium leading-relaxed">
+              {t.subtitle}.
+            </p>
+            <div className="flex flex-wrap gap-4 mb-8">
+               <button 
+                onClick={onOpenPortal}
+                className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:shadow-amber-500/20 transition-all cursor-pointer"
+               >
+                {t.enterPortalGateway}
+               </button>
+               <button 
+                onClick={onOpenPortal}
+                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-white/20 transition-all cursor-pointer"
+               >
+                {t.staffAuthenticator}
+               </button>
+            </div>
+
+            {/* Quick highlights */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg pt-4 border-t border-white/10">
+              <div className="flex items-center gap-2 text-slate-300 text-xs">
+                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+                <span>Verified Portal</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 text-xs">
+                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+                <span>Realtime Approvals</span>
+              </div>
+              <div className="flex items-center gap-2 text-slate-300 text-xs">
+                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+                <span>Instant Balances</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Right Column: Eye-catching Campus Student Banner Image */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="lg:col-span-5 flex justify-center lg:justify-end"
+          >
+            <div className="relative w-full max-w-[420px]">
+              {/* Subtle ambient warm glow behind the visual */}
+              <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500/25 to-orange-500/10 rounded-[2.5rem] blur-2xl opacity-75" />
+              
+              {/* Main Card Frame */}
+              <div className="relative rounded-[2rem] overflow-hidden p-2.5 bg-gradient-to-b from-white/15 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-2xl">
+                <div className="relative rounded-[1.5rem] overflow-hidden aspect-[4/3] bg-navy-900">
+                  <img 
+                    src={campusStudentImg}
+                    alt="University Student on Campus"
+                    className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                  />
+                  {/* Subtle gradient overlay at base of image */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-navy-950/80 via-transparent to-transparent pointer-events-none" />
+
+                  {/* Floating Top Badge */}
+                  <div className="absolute top-3 left-3 flex items-center gap-2 bg-navy-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-[11px] font-semibold text-white shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    <span>Campus Life 2026</span>
+                  </div>
+
+                  {/* Floating Bottom Card */}
+                  <div className="absolute bottom-3 inset-x-3 bg-white/10 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-white/20 text-white flex items-center justify-between shadow-xl">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-amber-500/90 text-navy-950 flex items-center justify-center font-bold shadow-sm">
+                        <BookOpen size={16} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold leading-tight">Faculty & Student Hub</div>
+                        <div className="text-[10px] text-slate-300">Continuous Academic Excellence</div>
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
+                      Active
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </section>
   );
