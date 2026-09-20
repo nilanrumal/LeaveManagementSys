@@ -215,20 +215,6 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
             <p className="text-base sm:text-lg text-slate-200 max-w-xl mb-8 font-medium leading-relaxed">
               {t.subtitle}.
             </p>
-            <div className="flex flex-wrap gap-4 mb-8">
-               <button 
-                onClick={onOpenPortal}
-                className="bg-amber-500 hover:bg-amber-600 text-navy-950 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-lg hover:shadow-amber-500/20 transition-all cursor-pointer"
-               >
-                {t.enterPortalGateway}
-               </button>
-               <button 
-                onClick={onOpenPortal}
-                className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide hover:bg-white/20 transition-all cursor-pointer"
-               >
-                {t.staffAuthenticator}
-               </button>
-            </div>
 
             {/* Quick highlights */}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg pt-4 border-t border-white/10">
@@ -481,23 +467,9 @@ export default function App() {
              <div className="max-w-4xl mx-auto text-center px-4 relative z-10">
                 <span className="text-orange-500 font-bold uppercase tracking-[0.15em] text-[10px] mb-4 block">Internal Network</span>
                 <h2 className="text-2xl md:text-3xl font-sans font-black tracking-tight mb-5 uppercase text-slate-800">{t.professionalAdministration}</h2>
-                <p className="text-slate-500 text-xs md:text-sm mb-8 max-w-xl mx-auto leading-relaxed">
+                <p className="text-slate-500 text-xs md:text-sm max-w-xl mx-auto leading-relaxed">
                   {t.professionalAdministrationDesc}
                 </p>
-                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                   <button 
-                    onClick={() => { setAuthMode('login'); setIsAuthModalOpen(true); }}
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3.5 rounded-full font-bold text-sm tracking-wide shadow-md hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    {t.enterPortalGateway} <ChevronRight size={16} />
-                  </button>
-                  <button 
-                    onClick={() => { setAuthMode('register'); setIsAuthModalOpen(true); }}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-8 py-3.5 rounded-full font-bold text-sm tracking-wide transition-all cursor-pointer border border-slate-200"
-                  >
-                    {t.newAccount}
-                  </button>
-                </div>
              </div>
           </section>
 
