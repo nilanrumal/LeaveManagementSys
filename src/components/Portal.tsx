@@ -50,11 +50,19 @@ interface PortalProps {
 
 export default function Portal({ user }: PortalProps) {
   const { lang, t } = useContext(LanguageContext);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports' | 'docs'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'approvals' | 'history' | 'admin' | 'reports' | 'docs'>(
+    user?.role === 'admin' ? 'admin' : 'dashboard'
+  );
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user?.role === 'admin' && activeTab !== 'admin' && activeTab !== 'docs') {
+      setActiveTab('admin');
+    }
+  }, [user?.role, activeTab]);
   
   // Filters
   const [filter, setFilter] = useState('');
@@ -1393,14 +1401,25 @@ Open University of Sri Lanka`;
         </div>
 
         <nav className="flex-1 space-y-1.5">
-          <SidebarLink 
-            icon={LayoutDashboard} 
-            label={t.dashboard} 
-            active={activeTab === 'dashboard'} 
-            onClick={() => setActiveTab('dashboard')} 
-          />
+          {/* Admin Directory & Management Tab (Primary for Admin) */}
+          {user.role === 'admin' && (
+            <SidebarLink 
+              icon={Briefcase} 
+              label={t.staffDirectory} 
+              active={activeTab === 'admin'} 
+              onClick={() => setActiveTab('admin')} 
+            />
+          )}
 
-
+          {/* Regular Dashboard for non-admin staff */}
+          {user.role !== 'admin' && (
+            <SidebarLink 
+              icon={LayoutDashboard} 
+              label={t.dashboard} 
+              active={activeTab === 'dashboard'} 
+              onClick={() => setActiveTab('dashboard')} 
+            />
+          )}
 
           {/* HOD Approvals Tab */}
           {user.role === 'hod' && (
@@ -1422,8 +1441,8 @@ Open University of Sri Lanka`;
             />
           )}
 
-          {/* Leave Analytics & Reports Tab */}
-          {['employee', 'staff', 'hod', 'ceo', 'admin'].includes(user.role) && (
+          {/* Leave Analytics & Reports Tab - ONLY FOR EMPLOYEES/HOD/CEO (REMOVED FOR ADMIN) */}
+          {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
             <SidebarLink
               icon={BarChart3}
               label={t.leaveReports}
@@ -1432,25 +1451,13 @@ Open University of Sri Lanka`;
             />
           )}
 
-          {/* Leave History / Total lists */}
-          {['employee', 'staff', 'hod', 'ceo', 'admin'].includes(user.role) && (
+          {/* Leave History - ONLY FOR EMPLOYEES/HOD/CEO (REMOVED FOR ADMIN) */}
+          {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
             <SidebarLink 
               icon={Clock} 
-              label={user.role === 'admin' ? t.allLeaveRecords : t.myLeaveHistory} 
+              label={t.myLeaveHistory} 
               active={activeTab === 'history'} 
               onClick={() => setActiveTab('history')} 
-            />
-          )}
-
-          {/* Admin Directory Tab */}
-          {user.role === 'admin' && (
-            <SidebarLink 
-              icon={Briefcase} 
-              label={t.staffDirectory} 
-              active={activeTab === 'admin'} 
-              onClick={() => {
-                setActiveTab('admin');
-              }} 
             />
           )}
 
@@ -1676,11 +1683,11 @@ Open University of Sri Lanka`;
         )}
 
         {/* -------------------- TAB: LEAVE HISTORY -------------------- */}
-        {activeTab === 'history' && (
+        {activeTab === 'history' && user.role !== 'admin' && (
           <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
               <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">
-                {user.role === 'admin' ? t.leaveRecordsLedger : t.myLeaveHistory}
+                {t.myLeaveHistory}
               </h3>
               <div className="flex flex-wrap gap-2 w-full md:w-auto">
                 <div className="relative flex-1 md:w-64">
@@ -1799,7 +1806,7 @@ Open University of Sri Lanka`;
         )}
 
         {/* -------------------- TAB: REPORTS -------------------- */}
-        {activeTab === 'reports' && (
+        {activeTab === 'reports' && user.role !== 'admin' && (
           <div className="space-y-8 print:p-0">
              {/* CEO Executive Report Center */}
              {user.role === 'ceo' && (
@@ -2001,7 +2008,7 @@ Open University of Sri Lanka`;
                    {/* Period filter */}
                    <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportTimeframe}</label>
-                      {(user.role === 'ceo' || user.role === 'admin') ? (
+                      {user.role === 'ceo' ? (
                          <select 
                            value={reportPeriod} 
                            onChange={(e: any) => setReportPeriod(e.target.value)}
@@ -2041,7 +2048,7 @@ Open University of Sri Lanka`;
                    {/* Department filter */}
                    <div>
                       <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{t.reportDept}</label>
-                      {(user.role === 'ceo' || user.role === 'admin') ? (
+                      {user.role === 'ceo' ? (
                          <select 
                            value={reportDeptFilter} 
                            onChange={(e) => {
@@ -2052,10 +2059,7 @@ Open University of Sri Lanka`;
                          >
                            <option value="All">All Departments</option>
                            <option value="Academic">Academic</option>
-                           <option value="Humanities">Humanities</option>
-                           <option value="Engineering">Engineering</option>
-                           <option value="Medicine">Medicine</option>
-                           <option value="Science">Science</option>
+                           <option value="IT Faculty">IT Faculty</option>
                          </select>
                       ) : (
                          <div className="w-full bg-slate-100 border border-slate-200 text-slate-500 rounded-xl px-3.5 py-2.5 text-xs font-bold">
@@ -2112,7 +2116,7 @@ Open University of Sri Lanka`;
              {/* COMPUTE DERIVED LEAVE STATISTICS */}
              {(() => {
                 const now = Date.now();
-                const activePeriod = (user.role === 'ceo' || user.role === 'admin')
+                const activePeriod = user.role === 'ceo'
                    ? reportPeriod
                    : (user.role === 'hod' ? hodPdfFilter : staffPdfFilter);
 
@@ -2133,11 +2137,11 @@ Open University of Sri Lanka`;
                       if (Math.abs(daysDiff) > rangeDays) return false;
                    }
 
-                   // Department check (only applicable for CEO/Admin, since others are restricted to their own department/id)
-                   if ((user.role === 'ceo' || user.role === 'admin') && reportDeptFilter !== 'All' && l.department !== reportDeptFilter) return false;
+                   // Department check (only applicable for CEO, since others are restricted to their own department/id)
+                   if (user.role === 'ceo' && reportDeptFilter !== 'All' && l.department !== reportDeptFilter) return false;
 
                    // Employee check
-                   if (['admin', 'ceo', 'hod'].includes(user.role)) {
+                   if (['ceo', 'hod'].includes(user.role)) {
                       if (reportEmployeeFilter !== 'All' && l.employeeId !== reportEmployeeFilter) return false;
                    } else {
                       if (l.employeeId !== user.uid) return false;
@@ -2736,7 +2740,7 @@ Open University of Sri Lanka`;
 
       {/* ----------------- MODAL: LEAVE REQUEST ----------------- */}
       <AnimatePresence>
-        {isApplyModalOpen && (
+        {isApplyModalOpen && user.role !== 'admin' && (
           <LeaveRequestModal 
             user={user} 
             onClose={() => setIsApplyModalOpen(false)} 
@@ -2781,21 +2785,15 @@ Open University of Sri Lanka`;
               </div>
 
               <div className="space-y-4">
-                {/* Employee Number - Locked & Read Only */}
+                {/* Employee Number */}
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.actingPersonnelID} (Immutable ID)</label>
-                   <div className="relative">
-                     <input 
-                       type="text" 
-                       disabled 
-                       className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm font-mono text-slate-500 focus:outline-none" 
-                       value={editingUser.employeeNo || "Not assigned"} 
-                     />
-                     <div className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400">
-                       <Lock size={16} />
-                     </div>
-                   </div>
-                   <p className="text-[10px] text-amber-600 mt-1">Employee numbers are permanent and cannot be modified.</p>
+                   <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.actingPersonnelID} (Employee ID)</label>
+                   <input 
+                     type="text" 
+                     className="input-field font-mono" 
+                     value={editingUser.employeeNo || ""} 
+                     onChange={(e) => setEditingUser({ ...editingUser, employeeNo: e.target.value })}
+                   />
                 </div>
 
                 {/* Name */}
@@ -2809,14 +2807,14 @@ Open University of Sri Lanka`;
                    />
                 </div>
 
-                {/* Email (Read Only too block accidental changes) */}
+                {/* Email */}
                 <div>
                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">{t.internalEmail}</label>
                    <input 
-                     type="text" 
-                     disabled
-                     className="w-full bg-slate-100 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-500" 
+                     type="email" 
+                     className="input-field" 
                      value={editingUser.email}
+                     onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
                    />
                 </div>
 
@@ -2844,10 +2842,7 @@ Open University of Sri Lanka`;
                      onChange={(e) => setEditingUser({ ...editingUser, department: e.target.value })}
                    >
                       <option>Academic</option>
-                      <option>Humanities</option>
-                      <option>Engineering</option>
-                      <option>Medicine</option>
-                      <option>Administration</option>
+                      <option>IT Faculty</option>
                    </select>
                 </div>
 
@@ -2932,6 +2927,8 @@ Open University of Sri Lanka`;
                       id: editingUser.uid,
                       data: {
                         name: editingUser.name,
+                        email: editingUser.email,
+                        employeeNo: editingUser.employeeNo,
                         role: editingUser.role,
                         department: editingUser.department,
                         totalLeaveDays: editingUser.totalLeaveDays,

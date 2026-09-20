@@ -154,11 +154,8 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
                     onChange={e => setDept(e.target.value)} 
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-bold text-slate-800 focus:outline-none focus:border-orange-500"
                   >
-                    <option>Humanities</option>
-                    <option>Engineering</option>
-                    <option>Medicine</option>
-                    <option>Administration</option>
                     <option>Academic</option>
+                    <option>IT Faculty</option>
                   </select>
                </div>
             </div>

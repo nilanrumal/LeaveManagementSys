@@ -956,11 +956,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.faculty}</label>
                     <select value={dept} onChange={e => setDept(e.target.value)} className="input-field bg-white text-xs">
                       <option>Academic</option>
-                      <option>Humanities</option>
-                      <option>Engineering</option>
-                      <option>Medicine</option>
-                      <option>Science</option>
-                      <option>Administration</option>
+                      <option>IT Faculty</option>
                     </select>
                  </div>
               </div>
