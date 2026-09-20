@@ -10,6 +10,7 @@ import {
   X, 
   User, 
   ChevronRight, 
+  ChevronLeft,
   GraduationCap, 
   BookOpen, 
   Users, 
@@ -177,106 +178,181 @@ const Navbar = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
 const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
   const { t } = useContext(LanguageContext);
   const [sliderImage, setSliderImage] = useState<string>("https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop");
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const unsubscribe = systemService.listenSliderImage((url) => {
-      setSliderImage(url);
+      if (url) setSliderImage(url);
     });
     return () => unsubscribe();
   }, []);
 
+  // 3 Real, high-definition university campus images
+  const bannerSlides = [
+    {
+      url: sliderImage || "https://images.unsplash.com/photo-1541339907198-e08756ebafe3?q=80&w=2070&auto=format&fit=crop",
+      tag: "Main Campus",
+      title: "Historic Faculty Grounds",
+      subtitle: "Center of Academic Heritage & Institutional Excellence"
+    },
+    {
+      url: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2070&auto=format&fit=crop",
+      tag: "Library & Research",
+      title: "Digital Academic Hub",
+      subtitle: "Modern Facilities Empowering Students & Faculty Members"
+    },
+    {
+      url: "https://images.unsplash.com/photo-1562774053-701939374585?q=80&w=2086&auto=format&fit=crop",
+      tag: "Technology Campus",
+      title: "Faculty of Technology",
+      subtitle: "State-of-the-Art Laboratories & Future-Ready Learning"
+    }
+  ];
+
+  // Auto transition smoothly every 5.5 seconds
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
+    }, 5500);
+    return () => clearInterval(timer);
+  }, [bannerSlides.length]);
+
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % bannerSlides.length);
+  };
+
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + bannerSlides.length) % bannerSlides.length);
+  };
+
   return (
-    <section className="relative min-h-[90vh] flex items-center bg-navy-950 overflow-hidden pt-28 pb-16 lg:py-0">
-      <div className="absolute inset-0 z-0">
-        <img 
-          src={sliderImage} 
-          alt="University" 
-          className="w-full h-full object-cover opacity-30 scale-105 transition-all duration-700"
-          referrerPolicy="no-referrer"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-950 via-navy-950/90 to-navy-950/60" />
+    <section className="relative min-h-[92vh] flex items-center overflow-hidden pt-28 pb-16 lg:py-0 bg-slate-950">
+      {/* 3 Real Images - Full Width Animated Slideshow with Cross-Fade */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        {bannerSlides.map((slide, index) => (
+          <motion.div
+            key={slide.url + index}
+            initial={false}
+            animate={{
+              opacity: currentSlide === index ? 1 : 0,
+              scale: currentSlide === index ? 1 : 1.05,
+            }}
+            transition={{
+              opacity: { duration: 1.4, ease: "easeInOut" },
+              scale: { duration: 6, ease: "easeOut" },
+            }}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+          >
+            <img 
+              src={slide.url} 
+              alt={slide.title} 
+              className="w-full h-full object-cover object-center"
+              referrerPolicy="no-referrer"
+            />
+          </motion.div>
+        ))}
+
+        {/* Left hand side smooth fade: Dense dark overlay on the left that smoothly fades out to transparent towards the right */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 via-45% to-transparent pointer-events-none" />
+        
+        {/* Soft top and bottom vignetting to blend seamlessly with the header and page body */}
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-transparent to-slate-950/40 pointer-events-none" />
       </div>
       
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 w-full animate-fade-in">
+      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 w-full animate-fade-in py-12">
         <div className="grid lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-          {/* Left Column: Heading & Calls to Action */}
+          {/* Left Column: Heading, Subtitle & Highlights with smooth dark readability backdrop */}
           <motion.div 
             initial={{ opacity: 0, y: 15 }} 
             animate={{ opacity: 1, y: 0 }} 
             transition={{ duration: 0.6 }}
             className="lg:col-span-7"
           >
-            <div className="inline-block px-4 py-1.5 bg-amber-500/10 text-amber-500 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-widest mb-6 border border-amber-500/20">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-orange-500/20 text-orange-400 rounded-full text-[11px] sm:text-xs font-bold uppercase tracking-widest mb-6 border border-orange-500/30 backdrop-blur-md shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse" />
               {t.academicExcellence}
             </div>
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-sans font-black text-white mb-6 tracking-tight leading-[1.1] uppercase">
+
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-sans font-black text-white mb-6 tracking-tight leading-[1.1] uppercase drop-shadow-lg">
               {t.title}
             </h1>
-            <p className="text-base sm:text-lg text-slate-200 max-w-xl mb-8 font-medium leading-relaxed">
+
+            <p className="text-base sm:text-lg text-slate-100 max-w-xl mb-8 font-medium leading-relaxed drop-shadow">
               {t.subtitle}.
             </p>
 
             {/* Quick highlights */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg pt-4 border-t border-white/10">
-              <div className="flex items-center gap-2 text-slate-300 text-xs">
-                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-lg pt-4 border-t border-white/20">
+              <div className="flex items-center gap-2 text-white/95 text-xs font-medium backdrop-blur-md bg-black/30 px-3 py-2 rounded-xl border border-white/15 shadow-sm">
+                <CheckCircle2 size={15} className="text-orange-400 shrink-0" />
                 <span>Verified Portal</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-300 text-xs">
-                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+              <div className="flex items-center gap-2 text-white/95 text-xs font-medium backdrop-blur-md bg-black/30 px-3 py-2 rounded-xl border border-white/15 shadow-sm">
+                <CheckCircle2 size={15} className="text-orange-400 shrink-0" />
                 <span>Realtime Approvals</span>
               </div>
-              <div className="flex items-center gap-2 text-slate-300 text-xs">
-                <CheckCircle2 size={14} className="text-amber-400 shrink-0" />
+              <div className="flex items-center gap-2 text-white/95 text-xs font-medium backdrop-blur-md bg-black/30 px-3 py-2 rounded-xl border border-white/15 shadow-sm">
+                <CheckCircle2 size={15} className="text-orange-400 shrink-0" />
                 <span>Instant Balances</span>
               </div>
             </div>
           </motion.div>
 
-          {/* Right Column: Eye-catching Campus Student Banner Image */}
+          {/* Right Column: Interactive Slide Showcase & Switcher */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="lg:col-span-5 flex justify-center lg:justify-end"
+            className="lg:col-span-5 flex flex-col justify-center items-center lg:items-end gap-4"
           >
-            <div className="relative w-full max-w-[420px]">
-              {/* Subtle ambient warm glow behind the visual */}
-              <div className="absolute -inset-2 bg-gradient-to-tr from-amber-500/25 to-orange-500/10 rounded-[2.5rem] blur-2xl opacity-75" />
-              
-              {/* Main Card Frame */}
-              <div className="relative rounded-[2rem] overflow-hidden p-2.5 bg-gradient-to-b from-white/15 via-white/5 to-white/10 backdrop-blur-md border border-white/20 shadow-2xl">
-                <div className="relative rounded-[1.5rem] overflow-hidden aspect-[4/3] bg-navy-900">
-                  <img 
-                    src={campusStudentImg}
-                    alt="University Student on Campus"
-                    className="w-full h-full object-cover object-center transform hover:scale-105 transition-transform duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                  {/* Subtle gradient overlay at base of image */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-navy-950/80 via-transparent to-transparent pointer-events-none" />
+            {/* Elegant Floating Scene Info Glass Card */}
+            <div className="relative w-full max-w-[390px] bg-slate-950/60 backdrop-blur-xl border border-white/20 rounded-3xl p-6 text-white shadow-2xl overflow-hidden group">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-mono font-black uppercase tracking-widest text-orange-400 bg-orange-500/15 px-3 py-1 rounded-full border border-orange-500/25">
+                  {bannerSlides[currentSlide].tag}
+                </span>
+                <span className="text-xs font-mono font-bold text-white/70">
+                  0{currentSlide + 1} / 0{bannerSlides.length}
+                </span>
+              </div>
 
-                  {/* Floating Top Badge */}
-                  <div className="absolute top-3 left-3 flex items-center gap-2 bg-navy-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-[11px] font-semibold text-white shadow-lg">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Campus Life 2026</span>
-                  </div>
+              <h3 className="font-sans font-black text-lg sm:text-xl text-white mb-1.5 tracking-tight drop-shadow-sm">
+                {bannerSlides[currentSlide].title}
+              </h3>
+              <p className="text-xs text-slate-200 mb-5 leading-relaxed font-normal">
+                {bannerSlides[currentSlide].subtitle}
+              </p>
 
-                  {/* Floating Bottom Card */}
-                  <div className="absolute bottom-3 inset-x-3 bg-white/10 backdrop-blur-md px-3.5 py-2.5 rounded-xl border border-white/20 text-white flex items-center justify-between shadow-xl">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-amber-500/90 text-navy-950 flex items-center justify-center font-bold shadow-sm">
-                        <BookOpen size={16} />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold leading-tight">Faculty & Student Hub</div>
-                        <div className="text-[10px] text-slate-300">Continuous Academic Excellence</div>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-mono font-bold uppercase bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/30">
-                      Active
-                    </span>
-                  </div>
+              {/* Slide Navigation Buttons & Progress Dots */}
+              <div className="flex items-center justify-between pt-4 border-t border-white/15">
+                <div className="flex gap-2 items-center">
+                  {bannerSlides.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setCurrentSlide(idx)}
+                      className={`h-2.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        currentSlide === idx ? 'w-8 bg-orange-500 shadow-md shadow-orange-500/50' : 'w-2.5 bg-white/30 hover:bg-white/60'
+                      }`}
+                      aria-label={`Slide ${idx + 1}`}
+                    />
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={prevSlide}
+                    className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 border border-white/20 flex items-center justify-center text-white transition active:scale-90 cursor-pointer backdrop-blur-md"
+                    aria-label="Previous Slide"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={nextSlide}
+                    className="w-9 h-9 rounded-full bg-orange-500 hover:bg-orange-600 text-white flex items-center justify-center transition active:scale-90 cursor-pointer shadow-lg shadow-orange-500/30 backdrop-blur-md"
+                    aria-label="Next Slide"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -285,7 +361,7 @@ const Hero = ({ onOpenPortal }: { onOpenPortal: () => void }) => {
       </div>
     </section>
   );
-}
+};
 
 const AcademicFeatures = () => {
   const { t } = useContext(LanguageContext);
