@@ -301,6 +301,41 @@ export default function Portal({ user }: PortalProps) {
     }[r] || 'bg-slate-100 text-slate-800';
   };
 
+  // Helper to determine whether a given leave request was created by an HOD
+  const isLeaveFromHOD = (l: LeaveRequest) => {
+    if (l.applicantRole === 'hod') return true;
+    const creator = allUsers.find(u => 
+      u.uid === l.employeeId || 
+      (l.employeeNo && u.employeeNo && u.employeeNo.trim().toLowerCase() === l.employeeNo.trim().toLowerCase()) ||
+      (l.employeeEmail && u.email && u.email.trim().toLowerCase() === l.employeeEmail.trim().toLowerCase())
+    );
+    if (creator && creator.role?.toLowerCase() === 'hod') return true;
+    return false;
+  };
+
+  // Pending HOD leaves awaiting CEO executive action
+  const pendingHodLeaves = leaves.filter(l => {
+    if (l.status !== 'Pending') return false;
+    if (l.employeeId === user.uid) return false;
+    return isLeaveFromHOD(l);
+  });
+
+  // Pending staff leaves awaiting HOD action in their department
+  const pendingStaffLeavesForHOD = leaves.filter(l => {
+    if (l.status !== 'Pending') return false;
+    if (l.employeeId === user.uid) return false;
+    if (isLeaveFromHOD(l)) return false; // HOD never evaluates another HOD
+    const creator = allUsers.find(u => 
+      u.uid === l.employeeId || 
+      (l.employeeNo && u.employeeNo && u.employeeNo.trim().toLowerCase() === l.employeeNo.trim().toLowerCase()) ||
+      (l.employeeEmail && u.email && u.email.trim().toLowerCase() === l.employeeEmail.trim().toLowerCase())
+    );
+    const isSameDept = 
+      (l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase()) ||
+      (creator?.department?.trim().toLowerCase() === user.department?.trim().toLowerCase());
+    return isSameDept;
+  });
+
   // Leaves filter logic
   const filteredLeaves = leaves.filter(l => {
     // Basic search Match
@@ -317,7 +352,10 @@ export default function Portal({ user }: PortalProps) {
       return l.employeeId === user.uid && matchesSearch && matchesStatus;
     } else if (user.role === 'hod') {
       // HOD can see leaves in their own department (either stored on the leave request or from the creator's current profile department)
-      const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
+      const leaveCreator = allUsers.find(u => 
+        u.uid === l.employeeId || 
+        (l.employeeNo && u.employeeNo && u.employeeNo.trim().toLowerCase() === l.employeeNo.trim().toLowerCase())
+      );
       const leaveCreatorDept = leaveCreator?.department;
       const isSameDept = 
         (l.department?.trim().toLowerCase() === user.department?.trim().toLowerCase()) ||
@@ -325,18 +363,17 @@ export default function Portal({ user }: PortalProps) {
 
       if (activeTab === 'approvals') {
         // HOD approves 'employee' or 'staff' role leaves only in their department.
-        // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
-        const isEmployeeOrLoading = !leaveCreator || leaveCreator.role === 'employee' || leaveCreator.role === 'staff';
-        return l.employeeId !== user.uid && isEmployeeOrLoading && isSameDept && matchesSearch && matchesStatus;
+        // HOD does NOT approve other HOD leaves (those are routed to the CEO).
+        const isFromHod = isLeaveFromHOD(l);
+        return l.employeeId !== user.uid && !isFromHod && isSameDept && matchesSearch && matchesStatus;
       }
       return isSameDept && matchesSearch && matchesStatus;
     } else if (user.role === 'ceo') {
-      // CEO approves HOD leaves across any department
+      // CEO evaluates HOD leaves across any faculty/department
       if (activeTab === 'approvals') {
-        const leaveCreator = allUsers.find(u => u.uid === l.employeeId);
-        // CEO approves 'hod' role leaves only.
-        // Fallback to true if allUsers list hasn't loaded the user profile yet to prevent empty lists during sync.
-        const isHodOrLoading = !leaveCreator || leaveCreator.role === 'hod';
+        const isFromHod = isLeaveFromHOD(l);
+        // Fallback: if allUsers is not loaded yet and applicantRole is not set, keep visible so nothing is lost
+        const isHodOrLoading = isFromHod || (!l.applicantRole && allUsers.length === 0);
         return l.employeeId !== user.uid && isHodOrLoading && matchesSearch && matchesStatus;
       }
       return matchesSearch && matchesStatus;
@@ -353,7 +390,11 @@ export default function Portal({ user }: PortalProps) {
   const stats = {
     total: user.totalLeaveDays,
     used: leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
-    pending: leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending').length,
+    pending: user.role === 'ceo' 
+      ? pendingHodLeaves.length 
+      : (user.role === 'hod' && activeTab === 'approvals' 
+          ? pendingStaffLeavesForHOD.length 
+          : leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending').length),
     remaining: user.totalLeaveDays - leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
   };
 
@@ -1300,7 +1341,7 @@ export default function Portal({ user }: PortalProps) {
   const handleUpdateStatusConfirm = async () => {
     if (!showCommentModal) return;
     try {
-      await leaveService.updateStatus(showCommentModal.id, showCommentModal.status, commentText);
+      await leaveService.updateStatus(showCommentModal.id, showCommentModal.status, commentText, user.name, user.role);
       
       // Post-decision communication trigger (WhatsApp + Email)
       if (showCommentModal.status === 'Approved' || showCommentModal.status === 'Rejected') {
@@ -1316,15 +1357,18 @@ export default function Portal({ user }: PortalProps) {
           const statusText = showCommentModal.status === 'Approved' ? 'APPROVED' : 'REJECTED';
           const emoji = showCommentModal.status === 'Approved' ? '✅' : '❌';
           const remarks = commentText.trim() || 'No specific comment provided.';
+          const reviewerTitle = user.role === 'ceo' 
+            ? 'Chief Executive Officer (CEO) / Vice-Chancellor' 
+            : (user.role === 'hod' ? `Head of Department (${user.department})` : 'University Administrator');
           
           // Formulate premium WhatsApp body
-          const whatsappMsg = `💬 *OUSL Leave Management* (Jaffna Campus)\n\nDear *${targetLeave.employeeName}*,\n\nYour leave request for *${targetLeave.type} Leave* from *${startDateStr}* to *${endDateStr}* (${durationDays} Day${durationDays > 1 ? 's' : ''}) has been *${statusText}* ${emoji} by the administrator.\n\n📝 *Comments/Reason*:\n"${remarks}"\n\nKind regards,\n_Office of Academic Leave, OUSL_`;
+          const whatsappMsg = `💬 *Jaffna University Leave Management*\n\nDear *${targetLeave.employeeName}*,\n\nYour leave request for *${targetLeave.type} Leave* from *${startDateStr}* to *${endDateStr}* (${durationDays} Day${durationDays > 1 ? 's' : ''}) has been *${statusText}* ${emoji} by ${user.name} (${reviewerTitle}).\n\n📝 *Comments/Reason*:\n"${remarks}"\n\nKind regards,\n_Office of Academic Leave, Jaffna University_`;
 
           // Formulate premium email subject & body
           const emailSubject = `[Leave Decision] Request for ${targetLeave.type} Leave: ${statusText}`;
           const emailBody = `Dear ${targetLeave.employeeName},
 
-This is an automated notification from the Office of Academic Leave Administration, Open University of Sri Lanka.
+This is an official notification from the Office of Academic Leave Administration, Jaffna University.
 
 Your leave request has been evaluated with the following determination:
 
@@ -1333,21 +1377,23 @@ Leave Details:
 --------------------------------------------------
 - Employee Name: ${targetLeave.employeeName}
 - Employee No: ${targetLeave.employeeNo}
+- Faculty / Department: ${targetLeave.department}
 - Leave Type: ${targetLeave.type}
 - Leave Period: ${startDateStr} to ${endDateStr}
 - Duration: ${durationDays} Day(s)
 - Current Status: ${statusText} ${emoji}
+- Authorized Reviewer: ${user.name} (${reviewerTitle})
 
 --------------------------------------------------
-Administrative Reason & Remarks:
+Administrative Remarks & Directives:
 --------------------------------------------------
 "${remarks}"
 
-If you have any questions or require further clarification, please contact the Assistant Registrar's department.
+If you have any questions or require further clarification, please contact the Registrar's department.
 
 Yours sincerely,
-Leave Management & Administration Office
-Open University of Sri Lanka`;
+Office of the ${reviewerTitle}
+Jaffna University`;
 
           setWhatsappModalData({
             employeeName: targetLeave.employeeName,
@@ -1428,6 +1474,7 @@ Open University of Sri Lanka`;
               label={t.staffApprovals}
               active={activeTab === 'approvals'}
               onClick={() => setActiveTab('approvals')}
+              badge={pendingStaffLeavesForHOD.length}
             />
           )}
 
@@ -1438,6 +1485,7 @@ Open University of Sri Lanka`;
               label={t.ceoApprovals}
               active={activeTab === 'approvals'}
               onClick={() => setActiveTab('approvals')}
+              badge={pendingHodLeaves.length}
             />
           )}
 
@@ -1547,7 +1595,44 @@ Open University of Sri Lanka`;
                 <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
                 <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
                 <StatCard label={t.remainingLeavesUnused} value={stats.remaining} icon={Clock} color="amber" suffix={t.days} />
-                <StatCard label={t.pendingLeavesEvaluation} value={stats.pending} icon={AlertCircle} color="slate" suffix={t.records} />
+                <StatCard 
+                  label={user.role === 'ceo' ? 'HOD Leaves Pending Action' : t.pendingLeavesEvaluation} 
+                  value={stats.pending} 
+                  icon={AlertCircle} 
+                  color={user.role === 'ceo' && stats.pending > 0 ? 'amber' : 'slate'} 
+                  suffix={user.role === 'ceo' ? 'HOD Requests' : t.records} 
+                />
+              </div>
+            )}
+
+            {/* CEO Executive Alert: Pending HOD leaves waiting for CEO review */}
+            {user.role === 'ceo' && pendingHodLeaves.length > 0 && (
+              <div className="bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/5 border-2 border-amber-400/50 rounded-2xl p-6 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center flex-shrink-0 shadow-md">
+                    <AlertCircle size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-sans font-black text-sm text-slate-800 uppercase tracking-tight">
+                        {pendingHodLeaves.length} HOD Leave {pendingHodLeaves.length === 1 ? 'Application Requires' : 'Applications Require'} Your Approval
+                      </h3>
+                      <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full uppercase">
+                        Action Required
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1 max-w-xl">
+                      Faculty Heads of Department (HOD) have applied for leave. As CEO / Vice-Chancellor, you have the authority to review and approve their requests.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('approvals')}
+                  className="bg-orange-600 hover:bg-orange-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm flex items-center gap-2 whitespace-nowrap active:scale-95 cursor-pointer"
+                >
+                  <CheckCircle size={15} />
+                  Review & Approve HOD Leaves &rarr;
+                </button>
               </div>
             )}
 
@@ -1774,6 +1859,19 @@ Open University of Sri Lanka`;
                         <td className="px-6 py-4 text-sm">
                           <div className="space-y-1">
                             <StatusBadge status={leave.status} />
+                            {leave.approvedBy && (
+                              <p className="text-[10px] text-slate-500 font-semibold">
+                                {leave.approvedByRole === 'ceo' ? (
+                                  <span className="text-purple-700 font-bold bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200 block max-w-[200px] truncate">
+                                    👑 CEO Reviewed: {leave.approvedBy}
+                                  </span>
+                                ) : (
+                                  <span className="block max-w-[200px] truncate">
+                                    Reviewed by: {leave.approvedBy}
+                                  </span>
+                                )}
+                              </p>
+                            )}
                             {leave.adminComment && (
                               <p className="text-xs text-slate-500 bg-slate-50 p-1.5 rounded border border-slate-100 max-w-[200px] italic">
                                 "{leave.adminComment}"
@@ -2375,9 +2473,16 @@ Open University of Sri Lanka`;
         {/* -------------------- TAB: APPROVALS (HOD & CEO) -------------------- */}
         {activeTab === 'approvals' && (user.role === 'hod' || user.role === 'ceo') && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
               <div>
-                 <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.evalQueue}</h3>
+                 <div className="flex items-center gap-2">
+                   <h3 className="font-sans font-black text-xs uppercase tracking-wider text-slate-800">{t.evalQueue}</h3>
+                   {user.role === 'ceo' && (
+                     <span className="bg-purple-100 text-purple-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-purple-200 uppercase tracking-wider">
+                       CEO Executive Review • Heads of Department
+                     </span>
+                   )}
+                 </div>
                  <p className="text-xs text-slate-500 mt-1">
                    {user.role === 'hod' ? t.evalQueueDescHOD : t.evalQueueDescCEO}
                  </p>
@@ -2404,12 +2509,25 @@ Open University of Sri Lanka`;
                         <tr key={leave.id} className="hover:bg-slate-50/50 transition-colors group">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-950 flex items-center justify-center font-bold text-sm">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm ${
+                                user.role === 'ceo' ? 'bg-purple-100 text-purple-800' : 'bg-indigo-100 text-indigo-950'
+                              }`}>
                                 {leave.employeeName?.charAt(0)}
                               </div>
                               <div>
-                                <p className="text-sm font-bold text-navy-900">{leave.employeeName}</p>
-                                <p className="text-[10px] font-mono font-bold text-slate-400">{leave.employeeNo}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="text-sm font-bold text-navy-900">{leave.employeeName}</p>
+                                  {user.role === 'ceo' && (
+                                    <span className="bg-purple-100 text-purple-800 text-[9px] font-black px-2 py-0.2 rounded-full border border-purple-200">
+                                      HOD
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400">
+                                  <span>{leave.employeeNo}</span>
+                                  <span>•</span>
+                                  <span className="font-sans font-semibold text-slate-600">{leave.department}</span>
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -3477,15 +3595,24 @@ Open University of Sri Lanka`;
   );
 }
 
-const SidebarLink = ({ icon: Icon, label, active, onClick }: { icon: any, label: string, active: boolean, onClick: () => void }) => (
+const SidebarLink = ({ icon: Icon, label, active, onClick, badge }: { icon: any, label: string, active: boolean, onClick: () => void, badge?: number | string }) => (
   <button 
     onClick={onClick}
-    className={`flex items-center gap-3 w-full p-2.5 rounded-xl transition-all font-sans font-bold text-xs tracking-wide cursor-pointer ${
+    className={`flex items-center justify-between w-full p-2.5 rounded-xl transition-all font-sans font-bold text-xs tracking-wide cursor-pointer ${
       active ? 'bg-orange-500 text-white shadow-sm scale-[1.02]' : 'text-slate-600 hover:text-orange-600 hover:bg-orange-50/50'
     }`}
   >
-    <Icon size={16} />
-    <span className="text-[13px]">{label}</span>
+    <div className="flex items-center gap-3">
+      <Icon size={16} />
+      <span className="text-[13px]">{label}</span>
+    </div>
+    {badge !== undefined && Number(badge) > 0 && (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+        active ? 'bg-white text-orange-600 shadow-sm' : 'bg-orange-500 text-white'
+      }`}>
+        {badge}
+      </span>
+    )}
   </button>
 );
 

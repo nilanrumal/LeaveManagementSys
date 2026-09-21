@@ -184,31 +184,31 @@ export const leaveService = {
   },
 
   listenAllLeaves(callback: (leaves: LeaveRequest[]) => void) {
-    const q = query(
-      collection(db, 'leaveRequests'),
-      orderBy('submittedAt', 'desc')
-    );
-    return onSnapshot(q, (snap) => {
+    return onSnapshot(collection(db, 'leaveRequests'), (snap) => {
       const leaves = snap.docs.map(d => {
         const data = d.data();
         return { 
           id: d.id, 
           ...data,
-          submittedAt: data.submittedAt instanceof Timestamp ? data.submittedAt.toMillis() : data.submittedAt,
+          submittedAt: data.submittedAt instanceof Timestamp ? data.submittedAt.toMillis() : (data.submittedAt || Date.now()),
           handledAt: data.handledAt instanceof Timestamp ? data.handledAt.toMillis() : data.handledAt
         } as LeaveRequest;
       });
-      callback(leaves);
+      // Client-side sort ensures all requests are returned reliably
+      const sortedLeaves = [...leaves].sort((a, b) => (b.submittedAt || 0) - (a.submittedAt || 0));
+      callback(sortedLeaves);
     }, (e) => handleFirestoreError(e, OperationTypeLocal.LIST, 'leaveRequests'));
   },
 
-  async updateStatus(requestId: string, status: 'Approved' | 'Rejected', comment?: string) {
+  async updateStatus(requestId: string, status: 'Approved' | 'Rejected', comment?: string, approverName?: string, approverRole?: string) {
     const path = `leaveRequests/${requestId}`;
     try {
       await updateDoc(doc(db, 'leaveRequests', requestId), {
         status,
         adminComment: comment || '',
-        handledAt: Date.now()
+        handledAt: Date.now(),
+        ...(approverName ? { approvedBy: approverName } : {}),
+        ...(approverRole ? { approvedByRole: approverRole } : {})
       });
     } catch (e) {
       handleFirestoreError(e, OperationTypeLocal.WRITE, path);

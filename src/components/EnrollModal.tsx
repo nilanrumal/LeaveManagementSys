@@ -2,7 +2,7 @@ import React, { useState, useContext } from 'react';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { motion } from 'motion/react';
-import { X, User, ShieldCheck, Loader2 } from 'lucide-react';
+import { X, User, ShieldCheck, Loader2, Eye, EyeOff } from 'lucide-react';
 import { firebaseConfig } from '../lib/firebase';
 import { userService } from '../services/db';
 import { LanguageContext } from '../App';
@@ -17,6 +17,7 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
   const { t } = useContext(LanguageContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState<UserRole>('employee');
@@ -185,14 +186,30 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
 
             <div>
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block mb-1.5 px-1">{t.securityCredentials}</label>
-              <input 
-                required 
-                value={password} 
-                onChange={e => setPassword(e.target.value)} 
-                type="password" 
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-medium focus:outline-none focus:border-orange-500" 
-                placeholder="••••••••" 
-              />
+              <div className="relative flex items-center">
+                <input 
+                  required 
+                  value={password} 
+                  onChange={e => setPassword(e.target.value)} 
+                  type={showPassword ? "text" : "password"} 
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 pr-11 text-xs font-medium focus:outline-none focus:border-orange-500" 
+                  placeholder="••••••••" 
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  title={showPassword ? "Hide password" : "Show password"}
+                  className="absolute right-3 p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer rounded-lg hover:bg-slate-100 flex items-center justify-center"
+                >
+                  {showPassword ? (
+                    <Eye size={16} className="text-orange-600" />
+                  ) : (
+                    <EyeOff size={16} className="text-slate-400" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <button 

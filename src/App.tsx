@@ -21,7 +21,9 @@ import {
   Mail,
   CheckCircle2,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { auth } from './lib/firebase';
@@ -874,6 +876,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
   const { t } = useContext(LanguageContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
   const [role, setRole] = useState<UserRole>(initialRole);
   const [dept, setDept] = useState('Academic');
@@ -1077,7 +1080,30 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
                 </button>
               )}
             </div>
-            <input required value={password} onChange={e => setPassword(e.target.value)} type="password" className="input-field" placeholder="••••••••" />
+            <div className="relative flex items-center">
+              <input 
+                required 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                type={showPassword ? "text" : "password"} 
+                className="input-field pr-11" 
+                placeholder="••••••••" 
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                tabIndex={-1}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                title={showPassword ? "Hide password" : "Show password"}
+                className="absolute right-3 p-1.5 text-slate-400 hover:text-slate-600 focus:outline-none transition-colors cursor-pointer rounded-lg hover:bg-slate-100 flex items-center justify-center"
+              >
+                {showPassword ? (
+                  <Eye size={18} className="text-orange-600" />
+                ) : (
+                  <EyeOff size={18} className="text-slate-400" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button disabled={loading} className="w-full primary-button py-3 text-sm flex items-center justify-center gap-2 mt-2">

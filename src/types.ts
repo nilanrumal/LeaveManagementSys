@@ -50,6 +50,8 @@ export interface LeaveRequest {
   handledAt?: number;
   adminComment?: string;
   approvedBy?: string;
+  approvedByRole?: UserRole;
+  applicantRole?: UserRole;
   employeeEmail?: string;
   employeePhone?: string;
 }
