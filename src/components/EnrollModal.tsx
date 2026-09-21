@@ -49,7 +49,7 @@ export default function EnrollModal({ onClose, currentUserRole }: EnrollModalPro
         name,
         role,
         department: dept,
-        totalLeaveDays: role === 'admin' ? 30 : 25,
+        totalLeaveDays: (role === 'admin' || role === 'ceo') ? 0 : 45,
         usedLeaveCount: 0,
         createdAt: Date.now(),
         employeeNo: empNo,

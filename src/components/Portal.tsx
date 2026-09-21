@@ -365,15 +365,47 @@ export default function Portal({ user }: PortalProps) {
     return matchesSearch && matchesStatus;
   });
 
+  // Dedicated Casual (21) and Medical (24) quotas
+  const CASUAL_QUOTA = 21;
+  const MEDICAL_QUOTA = 24;
+  const TOTAL_LEAVE_QUOTA = 45;
+
+  const calculateLeaveDays = (startDate: string, endDate: string) => {
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    if (isNaN(start) || isNaN(end) || end < start) return 1;
+    return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+  };
+
+  const userApprovedLeaves = leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved');
+  const userPendingLeaves = leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending');
+
+  const usedCasualDays = userApprovedLeaves
+    .filter(l => l.type === 'Casual')
+    .reduce((sum, l) => sum + calculateLeaveDays(l.startDate, l.endDate), 0);
+  const remainingCasualDays = Math.max(0, CASUAL_QUOTA - usedCasualDays);
+
+  const usedMedicalDays = userApprovedLeaves
+    .filter(l => l.type === 'Medical' || l.type === 'Sick')
+    .reduce((sum, l) => sum + calculateLeaveDays(l.startDate, l.endDate), 0);
+  const remainingMedicalDays = Math.max(0, MEDICAL_QUOTA - usedMedicalDays);
+
+  const totalUsedDays = usedCasualDays + usedMedicalDays;
+  const totalRemainingDays = remainingCasualDays + remainingMedicalDays;
+
   const stats = {
-    total: user.totalLeaveDays,
-    used: leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
+    total: TOTAL_LEAVE_QUOTA,
+    used: totalUsedDays,
+    remaining: totalRemainingDays,
     pending: user.role === 'ceo' 
       ? pendingHodLeaves.length 
       : (user.role === 'hod' && activeTab === 'approvals' 
           ? pendingStaffLeavesForHOD.length 
-          : leaves.filter(l => l.employeeId === user.uid && l.status === 'Pending').length),
-    remaining: user.totalLeaveDays - leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved').length,
+          : userPendingLeaves.length),
+    casualUsed: usedCasualDays,
+    casualRemaining: remainingCasualDays,
+    medicalUsed: usedMedicalDays,
+    medicalRemaining: remainingMedicalDays
   };
 
   const handleDownloadHODReport = () => {
@@ -408,11 +440,8 @@ export default function Portal({ user }: PortalProps) {
     let pendingCount = 0;
     let rejectedCount = 0;
     const typeCounts: Record<string, number> = {
-      Annual: 0,
-      Sick: 0,
-      Personal: 0,
-      'Maternity/Paternity': 0,
-      Study: 0
+      Casual: 0,
+      Medical: 0
     };
 
     reportLeaves.forEach(l => {
@@ -425,8 +454,11 @@ export default function Portal({ user }: PortalProps) {
       } else if (l.status === 'Rejected') {
         rejectedCount++;
       }
-      if (typeCounts[l.type] !== undefined) {
-        typeCounts[l.type]++;
+      const typeKey = l.type === 'Sick' ? 'Medical' : (l.type === 'Annual' ? 'Casual' : l.type);
+      if (typeCounts[typeKey] !== undefined) {
+        typeCounts[typeKey]++;
+      } else {
+        typeCounts[typeKey] = 1;
       }
     });
 
@@ -710,11 +742,8 @@ export default function Portal({ user }: PortalProps) {
     let pendingCount = 0;
     let rejectedCount = 0;
     const typeCounts: Record<string, number> = {
-      Annual: 0,
-      Sick: 0,
-      Personal: 0,
-      'Maternity/Paternity': 0,
-      Study: 0
+      Casual: 0,
+      Medical: 0
     };
 
     reportLeaves.forEach(l => {
@@ -727,8 +756,11 @@ export default function Portal({ user }: PortalProps) {
       } else if (l.status === 'Rejected') {
         rejectedCount++;
       }
-      if (typeCounts[l.type] !== undefined) {
-        typeCounts[l.type]++;
+      const typeKey = l.type === 'Sick' ? 'Medical' : (l.type === 'Annual' ? 'Casual' : l.type);
+      if (typeCounts[typeKey] !== undefined) {
+        typeCounts[typeKey]++;
+      } else {
+        typeCounts[typeKey] = 1;
       }
     });
 
@@ -1010,11 +1042,8 @@ export default function Portal({ user }: PortalProps) {
     let pendingCount = 0;
     let rejectedCount = 0;
     const typeCounts: Record<string, number> = {
-      Annual: 0,
-      Sick: 0,
-      Personal: 0,
-      'Maternity/Paternity': 0,
-      Study: 0
+      Casual: 0,
+      Medical: 0
     };
 
     reportLeaves.forEach(l => {
@@ -1027,8 +1056,11 @@ export default function Portal({ user }: PortalProps) {
       } else if (l.status === 'Rejected') {
         rejectedCount++;
       }
-      if (typeCounts[l.type] !== undefined) {
-        typeCounts[l.type]++;
+      const typeKey = l.type === 'Sick' ? 'Medical' : (l.type === 'Annual' ? 'Casual' : l.type);
+      if (typeCounts[typeKey] !== undefined) {
+        typeCounts[typeKey]++;
+      } else {
+        typeCounts[typeKey] = 1;
       }
     });
 
@@ -1409,8 +1441,8 @@ export default function Portal({ user }: PortalProps) {
             />
           )}
 
-          {/* Leave History - ONLY FOR EMPLOYEES/HOD/CEO (REMOVED FOR ADMIN) */}
-          {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
+          {/* Leave History - ONLY FOR EMPLOYEES AND HOD (EXCLUDED FOR ADMIN AND CEO) */}
+          {['employee', 'staff', 'hod'].includes(user.role) && (
             <SidebarLink 
               icon={Clock} 
               label={t.myLeaveHistory} 
@@ -1491,18 +1523,124 @@ export default function Portal({ user }: PortalProps) {
         {activeTab === 'dashboard' && (
           <div className="space-y-8">
             
-            {/* Quick stats for employees, HODs, and CEOs */}
-            {['employee', 'staff', 'hod', 'ceo'].includes(user.role) && (
+            {/* Quick stats for employees and HODs (Casual 21 and Medical 24 Quotas) */}
+            {['employee', 'staff', 'hod'].includes(user.role) && (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                  <StatCard 
+                    label={t.totalLeaveAllowance} 
+                    value={45} 
+                    icon={Calendar} 
+                    color="blue" 
+                    suffix={t.days} 
+                    subtext="Casual: 21d | Medical: 24d"
+                  />
+                  <StatCard 
+                    label={t.usedLeavesApproved} 
+                    value={stats.used} 
+                    icon={CheckCircle} 
+                    color="green" 
+                    suffix={t.days} 
+                    subtext={`Casual: ${stats.casualUsed}d | Medical: ${stats.medicalUsed}d`}
+                  />
+                  <StatCard 
+                    label={t.remainingLeavesUnused} 
+                    value={stats.remaining} 
+                    icon={Clock} 
+                    color="amber" 
+                    suffix={t.days} 
+                    subtext={`Casual: ${stats.casualRemaining}d | Medical: ${stats.medicalRemaining}d`}
+                  />
+                  <StatCard 
+                    label={t.pendingLeavesEvaluation} 
+                    value={stats.pending} 
+                    icon={AlertCircle} 
+                    color={stats.pending > 0 ? 'amber' : 'slate'} 
+                    suffix={t.records} 
+                  />
+                </div>
+
+                {/* Dedicated Dual Leave Quota Breakdown Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-slate-200/60 shadow-sm">
+                  <div className="p-4 rounded-xl bg-orange-50/50 border border-orange-100 flex flex-col justify-between gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Casual Leave Quota</span>
+                      </div>
+                      <span className="text-xs font-black font-mono text-orange-600">
+                        {stats.casualRemaining} / 21 Days Left
+                      </span>
+                    </div>
+                    <div className="w-full bg-orange-200/50 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-orange-500 h-full rounded-full transition-all" 
+                        style={{ width: `${Math.min(100, (stats.casualUsed / 21) * 100)}%` }} 
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                      <span>Used: <strong className="text-slate-700">{stats.casualUsed} Days</strong></span>
+                      <span>Remaining: <strong className="text-orange-700">{stats.casualRemaining} Days</strong></span>
+                      <span>Allowance: <strong className="text-slate-700">21 Days</strong></span>
+                    </div>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-emerald-50/50 border border-emerald-100 flex flex-col justify-between gap-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+                        <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Medical Leave Quota</span>
+                      </div>
+                      <span className="text-xs font-black font-mono text-emerald-700">
+                        {stats.medicalRemaining} / 24 Days Left
+                      </span>
+                    </div>
+                    <div className="w-full bg-emerald-200/50 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className="bg-emerald-600 h-full rounded-full transition-all" 
+                        style={{ width: `${Math.min(100, (stats.medicalUsed / 24) * 100)}%` }} 
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-slate-500 font-medium">
+                      <span>Used: <strong className="text-slate-700">{stats.medicalUsed} Days</strong></span>
+                      <span>Remaining: <strong className="text-emerald-700">{stats.medicalRemaining} Days</strong></span>
+                      <span>Allowance: <strong className="text-slate-700">24 Days</strong></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* CEO Executive Overview Cards */}
+            {user.role === 'ceo' && (
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <StatCard label={t.totalLeaveAllowance} value={stats.total} icon={Calendar} color="blue" suffix={t.days} />
-                <StatCard label={t.usedLeavesApproved} value={stats.used} icon={CheckCircle} color="green" suffix={t.days} />
-                <StatCard label={t.remainingLeavesUnused} value={stats.remaining} icon={Clock} color="amber" suffix={t.days} />
                 <StatCard 
-                  label={user.role === 'ceo' ? 'HOD Leaves Pending Action' : t.pendingLeavesEvaluation} 
-                  value={stats.pending} 
+                  label="Total University Leaves" 
+                  value={leaves.length} 
+                  icon={Calendar} 
+                  color="blue" 
+                  suffix="Requests" 
+                />
+                <StatCard 
+                  label="Approved University Leaves" 
+                  value={leaves.filter(l => l.status === 'Approved').length} 
+                  icon={CheckCircle} 
+                  color="green" 
+                  suffix="Approved" 
+                />
+                <StatCard 
+                  label="HOD Leaves Pending Action" 
+                  value={pendingHodLeaves.length} 
                   icon={AlertCircle} 
-                  color={user.role === 'ceo' && stats.pending > 0 ? 'amber' : 'slate'} 
-                  suffix={user.role === 'ceo' ? 'HOD Requests' : t.records} 
+                  color={pendingHodLeaves.length > 0 ? 'amber' : 'slate'} 
+                  suffix="Requests" 
+                />
+                <StatCard 
+                  label="Enrolled Staff Members" 
+                  value={allUsers.filter(u => u.role !== 'admin').length} 
+                  icon={UserCheck} 
+                  color="blue" 
+                  suffix="Members" 
                 />
               </div>
             )}
@@ -1562,7 +1700,10 @@ export default function Portal({ user }: PortalProps) {
                    value={(user.role === 'employee' || user.role === 'staff') ? t.staffMember : user.role === 'hod' ? t.hodRole : user.role === 'ceo' ? t.ceoRole : t.adminRole} 
                    badge={user.role} 
                  />
-                 <ProfileDisplayField label={t.totalLeaveAllowance} value={`${user.totalLeaveDays} ${t.days}`} />
+                 <ProfileDisplayField 
+                   label={t.totalLeaveAllowance} 
+                   value={['admin', 'ceo'].includes(user.role) ? 'N/A (Exempt Role)' : '45 Days (Casual: 21d | Medical: 24d)'} 
+                 />
               </div>
 
               {/* Editable WhatsApp section for standard/non-admin users to update their own contact information */}
@@ -2103,11 +2244,8 @@ export default function Portal({ user }: PortalProps) {
                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold text-navy-900 focus:outline-none"
                       >
                         <option value="All">All Leave Types</option>
-                        <option value="Annual">Annual Leave</option>
-                        <option value="Sick">Sick Leave</option>
-                        <option value="Personal">Personal Leave</option>
-                        <option value="Maternity/Paternity">Maternity/Paternity</option>
-                        <option value="Study">Study Leave</option>
+                        <option value="Casual">Casual Leave</option>
+                        <option value="Medical">Medical Leave</option>
                       </select>
                    </div>
                 </div>
@@ -2160,11 +2298,8 @@ export default function Portal({ user }: PortalProps) {
                 let rejectedRequests = 0;
 
                 const leaveTypeCounts: Record<string, number> = {
-                  Annual: 0,
-                  Sick: 0,
-                  Personal: 0,
-                  'Maternity/Paternity': 0,
-                  Study: 0
+                  Casual: 0,
+                  Medical: 0
                 };
 
                 filteredListByPeriod.forEach(l => {
@@ -2177,8 +2312,11 @@ export default function Portal({ user }: PortalProps) {
                    } else if (l.status === 'Rejected') {
                       rejectedRequests++;
                    }
-                   if (leaveTypeCounts[l.type] !== undefined) {
-                      leaveTypeCounts[l.type]++;
+                   const typeKey = l.type === 'Sick' ? 'Medical' : (l.type === 'Annual' ? 'Casual' : l.type);
+                   if (leaveTypeCounts[typeKey] !== undefined) {
+                      leaveTypeCounts[typeKey]++;
+                   } else {
+                      leaveTypeCounts[typeKey] = 1;
                    }
                 });
 
@@ -2228,11 +2366,10 @@ export default function Portal({ user }: PortalProps) {
                               {Object.entries(leaveTypeCounts).map(([type, val]) => {
                                  const pct = totalRequests > 0 ? Math.round((val / totalRequests) * 100) : 0;
                                  const barColor = {
-                                    Annual: 'bg-emerald-500',
-                                    Sick: 'bg-rose-500',
-                                    Personal: 'bg-indigo-500',
-                                    'Maternity/Paternity': 'bg-purple-500',
-                                    Study: 'bg-amber-500'
+                                    Casual: 'bg-orange-500',
+                                    Medical: 'bg-emerald-500',
+                                    Annual: 'bg-orange-500',
+                                    Sick: 'bg-emerald-500'
                                  }[type] || 'bg-slate-400';
                                  
                                  return (
@@ -2271,9 +2408,9 @@ export default function Portal({ user }: PortalProps) {
                                        </p>
                                     </div>
                                     <div className="bg-white/10 p-3 rounded-2xl border border-white/5">
-                                       <p className="text-white/40 text-[10px] uppercase font-mono font-bold tracking-wider">Health/Sick Ratio</p>
+                                       <p className="text-white/40 text-[10px] uppercase font-mono font-bold tracking-wider">Medical Leave Ratio</p>
                                        <p className="text-sm font-bold text-white mt-1">
-                                          {totalRequests > 0 ? `${Math.round((leaveTypeCounts['Sick'] / totalRequests) * 100)}% of Leaves` : '0%'}
+                                          {totalRequests > 0 ? `${Math.round(((leaveTypeCounts['Medical'] || 0) / totalRequests) * 100)}% of Leaves` : '0%'}
                                        </p>
                                     </div>
                                  </div>
@@ -3284,7 +3421,7 @@ const SidebarLink = ({ icon: Icon, label, active, onClick, badge }: { icon: any,
   </button>
 );
 
-const StatCard = ({ label, value, icon: Icon, color, suffix }: { label: string, value: number, icon: any, color: 'blue' | 'amber' | 'green' | 'slate', suffix: string }) => {
+const StatCard = ({ label, value, icon: Icon, color, suffix, subtext }: { label: string, value: number, icon: any, color: 'blue' | 'amber' | 'green' | 'slate', suffix: string, subtext?: string }) => {
   const colors = {
     blue: 'text-orange-600 bg-orange-50 border-orange-100',
     amber: 'text-orange-600 bg-orange-50 border-orange-105',
@@ -3292,7 +3429,7 @@ const StatCard = ({ label, value, icon: Icon, color, suffix }: { label: string, 
     slate: 'text-slate-600 bg-slate-50 border-slate-100',
   };
   return (
-    <div className={`p-6 rounded-2xl border border-slate-200/60 bg-white shadow-sm flex flex-col justify-between h-32`}>
+    <div className={`p-6 rounded-2xl border border-slate-200/60 bg-white shadow-sm flex flex-col justify-between min-h-32`}>
       <div className="flex justify-between items-start">
         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{label}</span>
         <div className={`p-2 rounded-lg ${colors[color]}`}>
@@ -3300,8 +3437,13 @@ const StatCard = ({ label, value, icon: Icon, color, suffix }: { label: string, 
         </div>
       </div>
       <div>
-         <span className="text-2xl font-sans font-black text-slate-800">{value}</span>
-         <span className="text-xs text-slate-400 ml-1 font-semibold">{suffix}</span>
+         <div className="flex items-baseline">
+           <span className="text-2xl font-sans font-black text-slate-800">{value}</span>
+           <span className="text-xs text-slate-400 ml-1 font-semibold">{suffix}</span>
+         </div>
+         {subtext && (
+           <p className="text-[10px] font-mono font-bold text-slate-500 mt-1">{subtext}</p>
+         )}
       </div>
     </div>
   );
@@ -3354,7 +3496,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
   const [formData, setFormData] = useState({
     startDate: '',
     endDate: '',
-    type: 'Annual' as LeaveType,
+    type: 'Casual' as LeaveType,
     actingEmployeeNo: '',
     reason: ''
   });
@@ -3362,9 +3504,31 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
   const [submitted, setSubmitted] = useState(false);
   const [isAutoRejected, setIsAutoRejected] = useState(false);
   const [error, setError] = useState('');
+  const [isActingDropdownOpen, setIsActingDropdownOpen] = useState(false);
+  const [selectedActingUser, setSelectedActingUser] = useState<UserProfile | null>(null);
   
   // Custom Error Dialog for non-existent Acting employee No
   const [errorDialogMsg, setErrorDialogMsg] = useState<string | null>(null);
+
+  // Exact Quota Balances
+  const userCasualLeaves = leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved' && (l.type === 'Casual' || l.type === 'Annual'));
+  const casualUsed = userCasualLeaves.reduce((acc, l) => acc + (Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1), 0);
+  const casualRemaining = Math.max(0, 21 - casualUsed);
+
+  const userMedicalLeaves = leaves.filter(l => l.employeeId === user.uid && l.status === 'Approved' && (l.type === 'Medical' || l.type === 'Sick'));
+  const medicalUsed = userMedicalLeaves.reduce((acc, l) => acc + (Math.ceil((new Date(l.endDate).getTime() - new Date(l.startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1), 0);
+  const medicalRemaining = Math.max(0, 24 - medicalUsed);
+
+  // Auto-filter eligible acting staff: registered staff/hod, not admin, not self
+  const eligibleStaff = allUsers.filter(u => u.uid !== user.uid && u.role !== 'admin' && !!u.employeeNo);
+  const actingQuery = formData.actingEmployeeNo.trim().toLowerCase();
+  const filteredStaff = eligibleStaff.filter(u => {
+    if (!actingQuery) return true;
+    const emp = (u.employeeNo || '').toLowerCase();
+    const name = (u.name || '').toLowerCase();
+    const fac = (u.department || '').toLowerCase();
+    return emp.includes(actingQuery) || name.includes(actingQuery) || fac.includes(actingQuery);
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -3387,7 +3551,7 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
     // ACTING STAFF CHECK: acting person should already be in data base
     const matchedProfile = await userService.verifyEmployeeNoExists(formData.actingEmployeeNo);
     if (!matchedProfile) {
-      setErrorDialogMsg(`Invalid Employee Number "${formData.actingEmployeeNo}". The acting person must already exist in the user database. Please verify and input a valid staff member's Employee No.`);
+      setErrorDialogMsg(`Invalid Employee Number "${formData.actingEmployeeNo}". The acting person must already exist in the user database. Please verify and select a valid staff member.`);
       setIsSubmitting(false);
       return;
     }
@@ -3397,6 +3561,20 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
 
     if (start > end) {
       setError('The start date must be before the end date.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const requestedDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Quota verification
+    if (formData.type === 'Casual' && requestedDays > casualRemaining) {
+      setError(`Insufficient Casual Leave balance! You requested ${requestedDays} days, but only ${casualRemaining} Casual days remain out of 21.`);
+      setIsSubmitting(false);
+      return;
+    }
+    if (formData.type === 'Medical' && requestedDays > medicalRemaining) {
+      setError(`Insufficient Medical Leave balance! You requested ${requestedDays} days, but only ${medicalRemaining} Medical days remain out of 24.`);
       setIsSubmitting(false);
       return;
     }
@@ -3562,46 +3740,160 @@ const LeaveRequestModal = ({ user, onClose, allUsers, leaves }: { user: UserProf
                   type="date" 
                   required
                   min={formData.startDate || today}
-                  className="input-field"
+                  className="input-field" 
                   value={formData.endDate}
                   onChange={(e) => setFormData({...formData, endDate: e.target.value})}
                 />
               </div>
             </div>
 
+            {/* Leave Type: Casual (21) and Medical (24) */}
             <div>
-              <label className="block text-xs font-bold text-slate-400 mb-2 uppercase tracking-widest">{t.leaveType}</label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5">
-                {['Annual', 'Sick', 'Personal', 'Maternity/Paternity', 'Study'].map((type) => (
-                  <button 
-                    key={type}
-                    type="button"
-                    onClick={() => setFormData({...formData, type: type as LeaveType})}
-                    className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      formData.type === type ? 'bg-orange-500 text-white border-orange-500 shadow-sm' : 'bg-slate-50 border-slate-200 text-slate-600 hover:border-orange-500'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">{t.leaveType}</label>
+                <span className="text-[10px] text-slate-400 font-bold uppercase">2 Categories Only</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setFormData({...formData, type: 'Casual'})}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    formData.type === 'Casual' 
+                      ? 'bg-orange-500 text-white border-orange-500 shadow-md ring-2 ring-orange-500/20' 
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-orange-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wide">Casual Leave</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${formData.type === 'Casual' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-700'}`}>
+                      {casualRemaining} / 21 Left
+                    </span>
+                  </div>
+                  <span className={`text-[10px] mt-2 font-medium ${formData.type === 'Casual' ? 'text-white/80' : 'text-slate-400'}`}>
+                    Total Annual Quota: 21 Days
+                  </span>
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => setFormData({...formData, type: 'Medical'})}
+                  className={`p-3.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    formData.type === 'Medical' 
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-600/20' 
+                      : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-emerald-400'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs uppercase tracking-wide">Medical Leave</span>
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${formData.type === 'Medical' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+                      {medicalRemaining} / 24 Left
+                    </span>
+                  </div>
+                  <span className={`text-[10px] mt-2 font-medium ${formData.type === 'Medical' ? 'text-white/80' : 'text-slate-400'}`}>
+                    Total Annual Quota: 24 Days
+                  </span>
+                </button>
               </div>
             </div>
 
-            {/* ACTING PERSON - Employee No Input */}
-            <div>
+            {/* ACTING PERSON - Auto-Filtering with Emp No, Faculty in Front, and Name */}
+            <div className="relative">
               <div className="flex justify-between items-center mb-2">
                 <label className="block text-xs font-bold text-slate-400 uppercase tracking-widest">{t.actingPersonnelID}</label>
-                <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-wider">Required Field</span>
+                <span className="text-[10px] text-orange-600 font-bold uppercase tracking-wider">Required Field</span>
               </div>
-              <input 
-                type="text" 
-                required
-                className="input-field font-mono uppercase" 
-                placeholder="E.g. emp00001 (Must exist)"
-                value={formData.actingEmployeeNo}
-                onChange={(e) => setFormData({...formData, actingEmployeeNo: e.target.value})}
-              />
-              <p className="text-[10px] text-slate-400 mt-1">Specify their verified Employee Identification number.</p>
+              <div className="relative">
+                <input 
+                  type="text" 
+                  required
+                  className="input-field font-mono uppercase pr-10" 
+                  placeholder="Type Emp No, Name or Faculty to filter..."
+                  value={formData.actingEmployeeNo}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({...formData, actingEmployeeNo: val});
+                    setIsActingDropdownOpen(true);
+                    const match = eligibleStaff.find(u => u.employeeNo?.toLowerCase() === val.trim().toLowerCase());
+                    setSelectedActingUser(match || null);
+                  }}
+                  onFocus={() => setIsActingDropdownOpen(true)}
+                />
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
+                  <Search size={16} />
+                </div>
+              </div>
+
+              {/* Auto-Filtered Dropdown List showing Faculty in front, Emp No, and Name */}
+              {isActingDropdownOpen && filteredStaff.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl max-h-56 overflow-y-auto z-50 p-1.5 space-y-1">
+                  <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 flex justify-between items-center">
+                    <span>Matching University Staff ({filteredStaff.length})</span>
+                    <button 
+                      type="button" 
+                      onClick={() => setIsActingDropdownOpen(false)}
+                      className="text-slate-400 hover:text-slate-600 text-xs font-bold cursor-pointer"
+                    >
+                      ✕ Close
+                    </button>
+                  </div>
+                  {filteredStaff.map((staff) => (
+                    <button
+                      key={staff.uid}
+                      type="button"
+                      onClick={() => {
+                        setFormData({...formData, actingEmployeeNo: staff.employeeNo || ''});
+                        setSelectedActingUser(staff);
+                        setIsActingDropdownOpen(false);
+                      }}
+                      className="w-full p-2.5 rounded-xl text-left hover:bg-orange-50/70 transition flex items-center justify-between gap-2 group cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {/* Faculty in Front */}
+                        <span className="bg-slate-100 group-hover:bg-orange-100 text-slate-700 group-hover:text-orange-900 text-[10px] font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                          {staff.department || 'Faculty'}
+                        </span>
+                        {/* Employee Number */}
+                        <span className="font-mono font-black text-xs text-orange-600 whitespace-nowrap">
+                          {staff.employeeNo}
+                        </span>
+                        {/* Name */}
+                        <span className="text-xs font-bold text-slate-800 truncate">
+                          {staff.name}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-bold text-slate-400 group-hover:text-orange-600 uppercase whitespace-nowrap">
+                        Select →
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Selected Acting Person Confirmation Pill */}
+              {selectedActingUser && (
+                <div className="mt-2 p-2.5 rounded-xl bg-orange-50/70 border border-orange-200 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                      Faculty: {selectedActingUser.department}
+                    </span>
+                    <span className="bg-orange-500 text-white font-mono font-bold text-[10px] px-2 py-0.5 rounded">
+                      {selectedActingUser.employeeNo}
+                    </span>
+                    <span className="font-bold text-slate-800">{selectedActingUser.name}</span>
+                  </div>
+                  {selectedActingUser.department?.trim().toLowerCase() !== user.department?.trim().toLowerCase() ? (
+                    <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded whitespace-nowrap">
+                      ⚠️ Faculty Mismatch
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded whitespace-nowrap">
+                      ✓ Same Faculty
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <p className="text-[10px] text-slate-400 mt-1">Specify their verified Employee Identification number (must be in your faculty).</p>
             </div>
 
             <div>

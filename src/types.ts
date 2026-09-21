@@ -31,7 +31,7 @@ export interface UserProfile {
   callmebotApiKey?: string;
 }
 
-export type LeaveType = 'Annual' | 'Sick' | 'Personal' | 'Maternity/Paternity' | 'Study';
+export type LeaveType = 'Casual' | 'Medical' | (string & {});
 export type LeaveStatus = 'Pending' | 'Approved' | 'Rejected';
 
 export interface LeaveRequest {

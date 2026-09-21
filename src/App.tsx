@@ -459,7 +459,7 @@ export default function App() {
                 name: isAsanka ? defaultAdminName : (u.displayName || u.email?.split('@')[0] || 'Faculty Member'),
                 role: isAsanka ? 'admin' : 'employee',
                 department: isAsanka ? 'Administration' : 'Academic',
-                totalLeaveDays: isAsanka ? 30 : 25,
+                totalLeaveDays: isAsanka ? 0 : 45,
                 usedLeaveCount: 0,
                 createdAt: Date.now(),
                 employeeNo: empNo,
@@ -963,7 +963,7 @@ const AuthModal = ({ mode, setMode, onClose, initialRole = 'employee' }: { mode:
           name: isAsanka ? defaultAdminName : name,
           role: isAsanka ? 'admin' : role,
           department: isAsanka ? 'Administration' : dept,
-          totalLeaveDays: (isAsanka || role === 'admin') ? 30 : 25,
+          totalLeaveDays: (isAsanka || role === 'admin' || role === 'ceo') ? 0 : 45,
           usedLeaveCount: 0,
           createdAt: Date.now(),
           employeeNo: empNo
